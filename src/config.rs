@@ -16,7 +16,9 @@ pub struct Config {
     pub enable_notifications: bool,
 }
 
-fn default_refresh_interval() -> u64 { 120 }
+fn default_refresh_interval() -> u64 {
+    120
+}
 
 impl Default for Config {
     fn default() -> Self {
@@ -32,24 +34,28 @@ impl Default for Config {
 
 impl Config {
     pub fn load() -> io::Result<Self> {
-        Self::load_from(&Self::config_path())
+        Self::load_from(Self::config_path())
     }
 
     pub fn save(&self) -> io::Result<()> {
-        self.save_to(&Self::config_path())
+        self.save_to(Self::config_path())
     }
 
     pub fn load_from<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let path = path.as_ref();
-        if !path.exists() { return Ok(Self::default()); }
+        if !path.exists() {
+            return Ok(Self::default());
+        }
         let content = fs::read_to_string(path)?;
         toml::from_str(&content).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
     }
 
     pub fn save_to<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
         let path = path.as_ref();
-        if let Some(parent) = path.parent() { fs::create_dir_all(parent)?; }
-        let content = toml::to_string_pretty(self).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let content = toml::to_string_pretty(self).map_err(io::Error::other)?;
         fs::write(path, content)
     }
 
@@ -70,7 +76,9 @@ impl Config {
     }
 
     fn config_path() -> std::path::PathBuf {
-        dirs::config_dir().unwrap_or_else(|| std::path::PathBuf::from("."))
-            .join("dota-tui").join("config.toml")
+        dirs::config_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("dota-tui")
+            .join("config.toml")
     }
 }
