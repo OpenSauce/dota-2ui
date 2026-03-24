@@ -58,7 +58,7 @@ Press `s` to favorite a team or tournament:
 Config lives at `~/.config/dota-tui/config.toml`. Created automatically on first run.
 
 ```toml
-refresh_interval = 60
+refresh_interval = 120
 # pandascore_api_key = "your-key-here"
 favorite_teams = ["Team Liquid"]
 favorite_tournaments = ["ESL One Birmingham 2026"]
@@ -66,9 +66,9 @@ favorite_tournaments = ["ESL One Birmingham 2026"]
 
 ### Data Sources
 
-**Liquipedia** (default) — no API key needed. Rate limited to 1 req/2s.
+**Liquipedia** (default) — no API key needed. Fetches match data from the Liquipedia wiki via the MediaWiki parse API. Default refresh every 120 seconds to respect rate limits (1 parse request per 30 seconds).
 
-**PandaScore** (optional) — set `pandascore_api_key` in config for cleaner data. Free tier: 1000 req/hour. Get a key at [pandascore.co](https://pandascore.co).
+**PandaScore** (optional) — set `pandascore_api_key` in config for structured API data. Free tier: 1000 req/hour. Get a key at [pandascore.co](https://pandascore.co).
 
 ## License
 
