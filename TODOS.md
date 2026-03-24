@@ -20,6 +20,14 @@
 **Effort:** S (human: ~2 hours / CC: ~15 min)
 **Depends on:** Nothing
 
+## P1 — CI/CD
+
+### GitHub Actions CI
+**What:** Add `.github/workflows/test.yml` that runs `cargo test` on push + PR. Add `.github/workflows/release.yml` that builds cross-platform binaries and publishes to GitHub Releases on tag push.
+**Why:** No CI at all right now. Tests only run locally. No automated release pipeline.
+**Effort:** S (human: ~1 hour / CC: ~10 min)
+**Depends on:** Nothing
+
 ## P2 — Next Round
 
 ### Tournament Bracket View
