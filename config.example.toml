@@ -1,0 +1,15 @@
+# dota-2ui configuration
+# Copy to ~/.config/dota-tui/config.toml
+
+# Refresh interval in seconds (default: 60)
+refresh_interval = 60
+
+# PandaScore API key (optional — enables PandaScore as data source)
+# Get a free key at https://pandascore.co
+# pandascore_api_key = "your-key-here"
+
+# Favorite teams (by name)
+favorite_teams = []
+
+# Favorite tournaments (by name)
+favorite_tournaments = []
