@@ -1,8 +1,18 @@
 # dota-2ui
 
-A terminal dashboard for Dota 2 esports. Track live matches, upcoming fixtures, and tournament countdowns — right from your terminal.
+TUI dashboard for Dota 2 esports. Live matches, fixtures, tournament countdowns.
 
-Built with Rust and [ratatui](https://github.com/ratatui/ratatui). Designed to be a lightweight desktop widget for your rice.
+```
+┌─ LIVE ─────────────────────────────────┬─ TOURNAMENTS ────────────────────────┐
+│  ESL One Birmingham · Bo2              │  ● LIVE  ESL One Birmingham   Mar 22 │
+│  ► Liquid    1:0  Gaimin Glad.         │  5d 12h  DreamLeague S25     Apr 01  │
+│                    Game 2 · 24:31      │  28d     TI 2026 Quals       Apr 22  │
+├─ UPCOMING ─────────────────────────────┤──────────────────────────────────────│
+│  15:00  VP vs TSpirit · Bo2            │  FAVORITES                           │
+│  17:30  NGX vs XG · Bo2               │  Team Liquid — LIVE vs Gaimin Glad.  │
+│  20:00  Xtreme Gaming vs BB · Bo2     │  OG — LIVE vs Aurora                 │
+└────────────────────────────────────────┴──────────────────────────────────────┘
+```
 
 ## Install
 
@@ -10,65 +20,36 @@ Built with Rust and [ratatui](https://github.com/ratatui/ratatui). Designed to b
 cargo install --git https://github.com/OpenSauce/dota-2ui
 ```
 
-## Usage
-
-```bash
-dota-2ui
-```
-
-### Keybinds
+## Keybinds
 
 | Key | Action |
 |-----|--------|
-| `t` | Tournament browser |
-| `f` | Filter |
+| `t` | Tournaments |
+| `s` | Favorite team/tournament |
+| `o` | Open stream |
 | `r` | Refresh |
-| `/` | Search |
-| `s` | Favorite (team or tournament) |
-| `o` | Open stream in browser |
-| `,` | Settings |
+| `j/k` | Scroll |
 | `Tab` | Cycle panels |
-| `Enter` | Select / drill in |
+| `Enter` | Select |
 | `Esc` | Back |
 | `q` | Quit |
 
-### Dashboard
+## Config
 
-The home screen shows a tiled layout:
-
-- **Live matches** span the full width at the top
-- **Upcoming fixtures** on the bottom left
-- **Tournament countdowns** and **favorites** on the bottom right
-
-Countdowns tick in real-time. The layout collapses to single-column on narrow terminals.
-
-### Tournament Browser
-
-Press `t` to browse tournaments. Scroll with `j`/`k`, press `Enter` to see full details including matches and group stages.
-
-### Favorites
-
-Press `s` to favorite a team or tournament:
-
-- **Favorite teams** show their next match in the dashboard favorites panel
-- **Favorite tournaments** get pinned with prominent countdowns
-
-## Configuration
-
-Config lives at `~/.config/dota-tui/config.toml`. Created automatically on first run.
+`~/.config/dota-tui/config.toml` (created on first run)
 
 ```toml
 refresh_interval = 120
 # pandascore_api_key = "your-key-here"
 favorite_teams = ["Team Liquid"]
-favorite_tournaments = ["ESL One Birmingham 2026"]
+favorite_tournaments = []
 ```
 
-### Data Sources
+## Data sources
 
-**Liquipedia** (default) — no API key needed. Fetches match data from the Liquipedia wiki via the MediaWiki parse API. Default refresh every 120 seconds to respect rate limits (1 parse request per 30 seconds).
+**Liquipedia** (default) — no API key, parses the wiki. Refreshes every 120s to respect rate limits.
 
-**PandaScore** (optional) — set `pandascore_api_key` in config for structured API data. Free tier: 1000 req/hour. Get a key at [pandascore.co](https://pandascore.co).
+**PandaScore** (optional) — set `pandascore_api_key` for structured data. Free tier at [pandascore.co](https://pandascore.co).
 
 ## License
 
