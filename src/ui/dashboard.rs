@@ -12,10 +12,12 @@ pub fn render(frame: &mut Frame, app: &App) {
     }
 
     let live = app.live_matches();
-    let live_height = (live.len() as u16 * 3).max(3).min(12);
+    // 1 line per match in the live panel
+    let live_rows = ((live.len() + 1) / 2) as u16; // 2 columns
+    let live_height = live_rows.max(1).min(8) + 2; // +2 for border
 
     let main_layout = Layout::vertical([
-        Constraint::Length(live_height + 2),
+        Constraint::Length(live_height),
         Constraint::Min(8),
         Constraint::Length(1),
     ])
@@ -54,9 +56,7 @@ fn render_live_panel(frame: &mut Frame, app: &App, area: Rect) {
     let block = Block::default()
         .title(Span::styled(
             " LIVE ",
-            Style::default()
-                .fg(Color::Red)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
         ))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::DarkGray))
@@ -66,11 +66,7 @@ fn render_live_panel(frame: &mut Frame, app: &App, area: Rect) {
 
     let live = app.live_matches();
     if live.is_empty() {
-        let msg = if app.is_loading {
-            "Loading..."
-        } else {
-            "No live matches"
-        };
+        let msg = if app.is_loading { "Loading..." } else { "No live matches" };
         frame.render_widget(
             Paragraph::new(Span::styled(msg, Style::default().fg(Color::DarkGray))),
             inner,
@@ -78,31 +74,21 @@ fn render_live_panel(frame: &mut Frame, app: &App, area: Rect) {
         return;
     }
 
-    let match_width = inner.width / 2;
+    // 2-column grid: left column gets even indices, right gets odd
+    let col_width = inner.width / 2;
     for (i, m) in live.iter().enumerate() {
-        let y = inner.y + (i as u16) * 3;
-        if y + 2 > inner.y + inner.height {
+        let row = (i / 2) as u16;
+        let col = (i % 2) as u16;
+        let y = inner.y + row;
+        if y >= inner.y + inner.height {
             break;
         }
-        let x = if live.len() > 1 && i % 2 == 1 {
-            inner.x + match_width
-        } else {
-            inner.x
-        };
-        let w = if live.len() > 1 {
-            match_width
-        } else {
-            inner.width
-        };
+        let x = inner.x + col * col_width;
         match_card::render_match_card(
             m,
-            Rect {
-                x,
-                y,
-                width: w,
-                height: 3,
-            },
+            Rect { x, y, width: col_width, height: 1 },
             frame.buffer_mut(),
+            true,
         );
     }
 }
@@ -111,9 +97,7 @@ fn render_upcoming_panel(frame: &mut Frame, app: &App, area: Rect) {
     let block = Block::default()
         .title(Span::styled(
             " UPCOMING ",
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
         ))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::DarkGray))
@@ -124,29 +108,22 @@ fn render_upcoming_panel(frame: &mut Frame, app: &App, area: Rect) {
     let upcoming = app.upcoming_matches();
     if upcoming.is_empty() {
         frame.render_widget(
-            Paragraph::new(Span::styled(
-                "No upcoming matches",
-                Style::default().fg(Color::DarkGray),
-            )),
+            Paragraph::new(Span::styled("No upcoming matches", Style::default().fg(Color::DarkGray))),
             inner,
         );
         return;
     }
 
     for (i, m) in upcoming.iter().enumerate() {
-        let y = inner.y + (i as u16) * 3;
-        if y + 2 > inner.y + inner.height {
+        let y = inner.y + (i as u16) * 2;
+        if y + 1 > inner.y + inner.height {
             break;
         }
         match_card::render_match_card(
             m,
-            Rect {
-                x: inner.x,
-                y,
-                width: inner.width,
-                height: 3,
-            },
+            Rect { x: inner.x, y, width: inner.width, height: 2 },
             frame.buffer_mut(),
+            false,
         );
     }
 }
@@ -160,13 +137,10 @@ fn render_right_panel(frame: &mut Frame, app: &App, area: Rect) {
         Layout::vertical([Constraint::Percentage(100)]).split(area)
     };
 
-    // Tournaments section
     let t_block = Block::default()
         .title(Span::styled(
             " TOURNAMENTS ",
-            Style::default()
-                .fg(Color::Magenta)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD),
         ))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::DarkGray))
@@ -181,24 +155,16 @@ fn render_right_panel(frame: &mut Frame, app: &App, area: Rect) {
         }
         countdown::render_countdown(
             t,
-            Rect {
-                x: t_inner.x,
-                y,
-                width: t_inner.width,
-                height: 1,
-            },
+            Rect { x: t_inner.x, y, width: t_inner.width, height: 1 },
             frame.buffer_mut(),
         );
     }
 
-    // Favorites section
     if has_favorites && split.len() > 1 {
         let f_block = Block::default()
             .title(Span::styled(
                 " FAVORITES ",
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
+                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
             ))
             .borders(Borders::ALL)
             .border_style(Style::default().fg(Color::DarkGray))
@@ -209,27 +175,20 @@ fn render_right_panel(frame: &mut Frame, app: &App, area: Rect) {
         let fav_matches = app.favorite_teams_matches();
         if fav_matches.is_empty() {
             frame.render_widget(
-                Paragraph::new(Span::styled(
-                    "No matches for favorites",
-                    Style::default().fg(Color::DarkGray),
-                )),
+                Paragraph::new(Span::styled("No matches for favorites", Style::default().fg(Color::DarkGray))),
                 f_inner,
             );
         } else {
             for (i, m) in fav_matches.iter().enumerate() {
-                let y = f_inner.y + (i as u16) * 2;
-                if y + 1 > f_inner.y + f_inner.height {
+                let y = f_inner.y + i as u16;
+                if y >= f_inner.y + f_inner.height {
                     break;
                 }
                 match_card::render_match_card(
                     m,
-                    Rect {
-                        x: f_inner.x,
-                        y,
-                        width: f_inner.width,
-                        height: 2,
-                    },
+                    Rect { x: f_inner.x, y, width: f_inner.width, height: 1 },
                     frame.buffer_mut(),
+                    true,
                 );
             }
         }

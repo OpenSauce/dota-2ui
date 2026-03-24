@@ -121,8 +121,8 @@ pub fn render(frame: &mut Frame, app: &App) {
         );
     } else {
         for (i, m) in tournament_matches.iter().enumerate() {
-            let y = matches_inner.y + (i as u16) * 3;
-            if y + 2 > matches_inner.y + matches_inner.height {
+            let y = matches_inner.y + i as u16;
+            if y >= matches_inner.y + matches_inner.height {
                 break;
             }
             match_card::render_match_card(
@@ -131,9 +131,10 @@ pub fn render(frame: &mut Frame, app: &App) {
                     x: matches_inner.x,
                     y,
                     width: matches_inner.width,
-                    height: 3,
+                    height: 1,
                 },
                 frame.buffer_mut(),
+                true,
             );
         }
     }

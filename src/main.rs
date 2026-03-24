@@ -7,6 +7,7 @@ mod models;
 mod ui;
 
 use app::App;
+use cache::DiskCache;
 use config::Config;
 use crossterm::{
     event::{self, Event, KeyEventKind},
@@ -26,6 +27,20 @@ struct FetchResult {
 async fn main() -> io::Result<()> {
     let config = Config::load()?;
     let mut app = App::new(config);
+
+    // Load cached data so we show something immediately
+    let disk_cache = DiskCache::new(DiskCache::default_path());
+    let cache_ttl = Duration::from_secs(app.config.refresh_interval * 2);
+    if let Ok(Some(data)) = disk_cache.read("matches", cache_ttl) {
+        if let Ok(matches) = serde_json::from_str::<Vec<models::Match>>(&data) {
+            app.matches = matches;
+        }
+    }
+    if let Ok(Some(data)) = disk_cache.read("tournaments", cache_ttl) {
+        if let Ok(tournaments) = serde_json::from_str::<Vec<models::Tournament>>(&data) {
+            app.tournaments = tournaments;
+        }
+    }
 
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -65,6 +80,14 @@ async fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &m
         while let Ok(result) = rx.try_recv() {
             match result {
                 Ok(data) => {
+                    // Save to disk cache
+                    let disk_cache = DiskCache::new(DiskCache::default_path());
+                    if let Ok(json) = serde_json::to_string(&data.matches) {
+                        let _ = disk_cache.write("matches", &json);
+                    }
+                    if let Ok(json) = serde_json::to_string(&data.tournaments) {
+                        let _ = disk_cache.write("tournaments", &json);
+                    }
                     app.matches = data.matches;
                     app.tournaments = data.tournaments;
                     app.error_message = None;
