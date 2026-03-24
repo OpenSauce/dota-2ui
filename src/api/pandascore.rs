@@ -230,7 +230,41 @@ impl PandaScoreProvider {
                 prize_pool: t.prizepool,
             });
         }
-        Ok(tournaments)
+
+        // Deduplicate tournaments with the same name (PandaScore returns stages as separate entries).
+        // Merge by taking the earliest start, latest end, most "active" status, and highest tier.
+        let mut merged: std::collections::HashMap<String, Tournament> =
+            std::collections::HashMap::new();
+        for t in tournaments {
+            if let Some(existing) = merged.get_mut(&t.name) {
+                if t.start_date < existing.start_date {
+                    existing.start_date = t.start_date;
+                }
+                if t.end_date > existing.end_date {
+                    existing.end_date = t.end_date;
+                }
+                // Prefer Live > Upcoming > Completed
+                if t.status == TournamentStatus::Live {
+                    existing.status = TournamentStatus::Live;
+                } else if t.status == TournamentStatus::Upcoming
+                    && existing.status == TournamentStatus::Completed
+                {
+                    existing.status = TournamentStatus::Upcoming;
+                }
+                // Keep higher tier
+                if t.tier.starts_with("S") && !existing.tier.starts_with("S") {
+                    existing.tier = t.tier;
+                }
+                // Merge prize pool if missing
+                if existing.prize_pool.is_none() {
+                    existing.prize_pool = t.prize_pool;
+                }
+            } else {
+                merged.insert(t.name.clone(), t);
+            }
+        }
+
+        Ok(merged.into_values().collect())
     }
 
     async fn get(&self, endpoint: &str) -> ApiResult<String> {
