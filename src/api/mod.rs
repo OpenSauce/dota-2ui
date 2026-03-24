@@ -15,7 +15,9 @@ pub enum ApiError {
 }
 
 impl From<reqwest::Error> for ApiError {
-    fn from(e: reqwest::Error) -> Self { ApiError::Http(e) }
+    fn from(e: reqwest::Error) -> Self {
+        ApiError::Http(e)
+    }
 }
 
 impl std::fmt::Display for ApiError {
