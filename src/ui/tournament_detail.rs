@@ -135,9 +135,10 @@ pub fn render(frame: &mut Frame, app: &App) {
                 },
                 frame.buffer_mut(),
                 true,
+                app.tick_count,
             );
         }
     }
 
-    keybind_bar::render_keybind_bar(&app.screen, layout[2], frame.buffer_mut());
+    keybind_bar::render_keybind_bar(app, layout[2], frame.buffer_mut());
 }

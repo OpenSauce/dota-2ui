@@ -61,6 +61,22 @@ async fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &m
 
     loop {
         terminal.draw(|frame| ui::render(frame, app))?;
+        app.tick_count = app.tick_count.wrapping_add(1);
+        if app.broadcast_mode && app.tick_count % 10 == 0 {
+            app.ticker_offset = app.ticker_offset.wrapping_add(1);
+        }
+
+        // Check notifications once per second (every 10 ticks), not every tick
+        #[cfg(feature = "notifications")]
+        if app.tick_count % 10 == 0 {
+            let notifications = app.pending_notifications();
+            for (message, _event) in notifications {
+                let _ = notify_rust::Notification::new()
+                    .summary("Dota 2 TUI")
+                    .body(&message)
+                    .show();
+            }
+        }
 
         if app.needs_refresh() && !app.is_loading {
             app.is_loading = true;
@@ -91,6 +107,11 @@ async fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &m
                     app.matches = data.matches;
                     app.tournaments = data.tournaments;
                     app.error_message = None;
+                    // Prune stale notification keys for matches/tournaments no longer present
+                    app.notified_events.retain(|key| {
+                        app.matches.iter().any(|m| m.id == key.match_or_tournament_id)
+                            || app.tournaments.iter().any(|t| t.id == key.match_or_tournament_id)
+                    });
                 }
                 Err(e) => {
                     app.error_message = Some(e);
@@ -99,7 +120,7 @@ async fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &m
             app.is_loading = false;
         }
 
-        if event::poll(Duration::from_secs(1))? {
+        if event::poll(Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
                     if let Some(action) = input::map_key(key, &app.screen) {

@@ -1,6 +1,6 @@
 # dota-2ui
 
-TUI dashboard for Dota 2 esports. Live matches, fixtures, tournament countdowns.
+TUI dashboard for Dota 2 esports. Live matches, fixtures, tournament countdowns, and a fullscreen broadcast mode.
 
 ## Install
 
@@ -8,19 +8,34 @@ TUI dashboard for Dota 2 esports. Live matches, fixtures, tournament countdowns.
 cargo install --git https://github.com/OpenSauce/dota-2ui
 ```
 
+With desktop notifications (requires `libdbus-1-dev` on Linux):
+
+```bash
+cargo install --git https://github.com/OpenSauce/dota-2ui --features notifications
+```
+
 ## Keybinds
 
 | Key | Action |
 |-----|--------|
-| `t` | Tournaments |
-| `s` | Favorite team/tournament |
-| `o` | Open stream |
-| `r` | Refresh |
-| `j/k` | Scroll |
+| `b` | Toggle broadcast mode |
+| `t` | Tournament browser |
+| `o` | Open stream URL |
+| `r` | Force refresh |
+| `j/k` | Scroll (tournament browser) |
 | `Tab` | Cycle panels |
 | `Enter` | Select |
 | `Esc` | Back |
+| `,` | Settings |
 | `q` | Quit |
+
+## Broadcast mode
+
+Press `b` for a fullscreen ESPN-style view:
+- Scrolling ticker with all live/upcoming matches
+- Center stage featured match (prefers your favorite teams)
+- Side rail with other matches
+- Animated tournament countdown gauge
 
 ## Config
 
@@ -31,7 +46,17 @@ refresh_interval = 120
 # pandascore_api_key = "your-key-here"
 favorite_teams = ["Team Liquid"]
 favorite_tournaments = []
+enable_notifications = false
 ```
+
+## Notifications
+
+Compile with `--features notifications` to get desktop alerts for:
+- Favorite team match starting in 15 minutes
+- Favorite team match going live
+- Tournament starting today
+
+Set `enable_notifications = true` in config.
 
 ## Data sources
 

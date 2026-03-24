@@ -1,12 +1,17 @@
 [package]
 name = "dota-2ui"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Dota 2 esports TUI dashboard — tournament fixtures, live matches, and countdowns"
 license = "MIT"
 repository = "https://github.com/OpenSauce/dota-2ui"
 
+[features]
+default = []
+notifications = ["dep:notify-rust"]
+
 [dependencies]
+notify-rust = { version = "4", optional = true }
 ratatui = "0.29"
 crossterm = "0.28"
 tokio = { version = "1", features = ["full"] }

@@ -12,6 +12,8 @@ pub struct Config {
     pub favorite_teams: Vec<String>,
     #[serde(default)]
     pub favorite_tournaments: Vec<String>,
+    #[serde(default)]
+    pub enable_notifications: bool,
 }
 
 fn default_refresh_interval() -> u64 { 120 }
@@ -23,6 +25,7 @@ impl Default for Config {
             pandascore_api_key: None,
             favorite_teams: Vec::new(),
             favorite_tournaments: Vec::new(),
+            enable_notifications: false,
         }
     }
 }
