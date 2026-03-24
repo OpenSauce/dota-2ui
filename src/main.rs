@@ -213,7 +213,7 @@ async fn run_loop(
             && app.tournament_detail_tab == input::TournamentTab::Bracket
         {
             if let Some(ref tid) = app.selected_tournament_id {
-                if !app.bracket_cache.contains_key(tid) {
+                if !app.bracket_cache.contains_key(tid) && !app.bracket_attempted.contains(tid) {
                     let bracket_ttl = Duration::from_secs(600);
                     if let Ok(Some(data)) = bracket_disk_cache.read(&format!("bracket-{}", tid), bracket_ttl) {
                         if let Ok(bracket) = serde_json::from_str::<models::Bracket>(&data) {
@@ -256,6 +256,8 @@ async fn run_loop(
                             let _ = bracket_disk_cache.write(&format!("bracket-{}", tid), &json);
                         }
                         app.bracket_cache.insert(tid, bracket);
+                    } else {
+                        app.bracket_attempted.insert(tid);
                     }
                 }
                 Err(e) => {
