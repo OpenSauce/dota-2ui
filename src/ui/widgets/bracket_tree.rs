@@ -323,7 +323,7 @@ fn format_team_str(team: Option<&str>, score: u8) -> String {
 }
 
 fn team_style(team: Option<&str>, status: MatchStatus, is_winner: bool, is_fav: bool) -> Style {
-    let is_tbd = team.is_none() || team.map_or(false, |n| n.is_empty());
+    let is_tbd = team.is_none() || team.is_some_and(|n| n.is_empty());
     let mut style = Style::default();
 
     if is_tbd {
