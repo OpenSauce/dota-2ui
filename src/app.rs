@@ -1,4 +1,3 @@
-use crate::api::{self, MatchProvider};
 use crate::config::Config;
 use crate::input::{AppAction, Screen};
 use crate::models::*;
