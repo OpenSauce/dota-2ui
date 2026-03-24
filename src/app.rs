@@ -201,6 +201,7 @@ impl App {
                         self.screen = Screen::TournamentDetail;
                         self.scroll_offset = 0;
                         self.tournament_detail_tab = TournamentTab::Overview;
+                        self.bracket_loading = false;
                     }
                 }
             }

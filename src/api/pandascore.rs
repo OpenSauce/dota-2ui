@@ -400,7 +400,7 @@ impl MatchProvider for PandaScoreProvider {
         let tid = tournament_id.to_string();
         Box::pin(async move {
             let json = self
-                .get(&format!("/tournaments/{}/matches?per_page=50", tid))
+                .get(&format!("/tournaments/{}/matches?per_page=100", tid))
                 .await?;
             let bracket = Self::reconstruct_bracket(&json)?;
             if bracket.upper_rounds.is_empty() {

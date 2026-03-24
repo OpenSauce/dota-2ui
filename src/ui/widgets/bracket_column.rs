@@ -183,13 +183,15 @@ fn render_separator(x: u16, y: u16, width: u16, buf: &mut Buffer) {
 }
 
 fn render_divider(label: &str, y: u16, x: u16, width: u16, buf: &mut Buffer) {
-    let label_str = format!("═══ {} ═══", label);
-    let pad = width.saturating_sub(label_str.len() as u16) / 2;
+    let label_str = format!("=== {} ===", label);
+    let label_display_width = label_str.chars().count() as u16;
+    let pad = width.saturating_sub(label_display_width) / 2;
+    let right_pad = width.saturating_sub(pad + label_display_width);
     let full: String = format!(
         "{}{}{}",
-        "═".repeat(pad as usize),
+        "=".repeat(pad as usize),
         label_str,
-        "═".repeat((width.saturating_sub(pad + label_str.len() as u16)) as usize)
+        "=".repeat(right_pad as usize)
     );
     let span = Span::styled(
         truncate_str(&full, width as usize),
@@ -302,10 +304,12 @@ fn is_favorite(team: Option<&str>, favorites: &[String]) -> bool {
 }
 
 fn truncate_str(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
+    let char_count = s.chars().count();
+    if char_count <= max_len {
         s.to_string()
     } else if max_len > 1 {
-        format!("{}…", &s[..max_len - 1])
+        let truncated: String = s.chars().take(max_len - 1).collect();
+        format!("{}…", truncated)
     } else {
         s.chars().take(max_len).collect()
     }

@@ -309,14 +309,16 @@ fn format_team_str(team: Option<&str>, score: u8) -> String {
     };
     let score_str = format!(" {}", score);
     let name_max = MATCH_WIDTH.saturating_sub(score_str.len() + 1);
-    let truncated = if name.len() > name_max && name_max > 1 {
-        format!("{}…", &name[..name_max - 1])
-    } else if name.len() > name_max {
+    let char_count = name.chars().count();
+    let truncated = if char_count > name_max && name_max > 1 {
+        let t: String = name.chars().take(name_max - 1).collect();
+        format!("{}…", t)
+    } else if char_count > name_max {
         name.chars().take(name_max).collect()
     } else {
         name.to_string()
     };
-    let padding = name_max.saturating_sub(truncated.len());
+    let padding = name_max.saturating_sub(truncated.chars().count());
     format!(" {}{}{}", truncated, " ".repeat(padding), score_str)
 }
 
