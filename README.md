@@ -2,18 +2,6 @@
 
 TUI dashboard for Dota 2 esports. Live matches, fixtures, tournament countdowns.
 
-```
-┌─ LIVE ─────────────────────────────────┬─ TOURNAMENTS ────────────────────────┐
-│  ESL One Birmingham · Bo2              │  ● LIVE  ESL One Birmingham   Mar 22 │
-│  ► Liquid    1:0  Gaimin Glad.         │  5d 12h  DreamLeague S25     Apr 01  │
-│                    Game 2 · 24:31      │  28d     TI 2026 Quals       Apr 22  │
-├─ UPCOMING ─────────────────────────────┤──────────────────────────────────────│
-│  15:00  VP vs TSpirit · Bo2            │  FAVORITES                           │
-│  17:30  NGX vs XG · Bo2               │  Team Liquid — LIVE vs Gaimin Glad.  │
-│  20:00  Xtreme Gaming vs BB · Bo2     │  OG — LIVE vs Aurora                 │
-└────────────────────────────────────────┴──────────────────────────────────────┘
-```
-
 ## Install
 
 ```bash
