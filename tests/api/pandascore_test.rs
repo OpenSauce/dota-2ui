@@ -11,7 +11,10 @@ fn test_parse_pandascore_match() {
     assert_eq!(matches[0].score_a, 1);
     assert_eq!(matches[0].status, MatchStatus::Live);
     assert_eq!(matches[0].series_format, SeriesFormat::Bo3);
-    assert_eq!(matches[0].stream_url.as_deref(), Some("https://twitch.tv/esl"));
+    assert_eq!(
+        matches[0].stream_url.as_deref(),
+        Some("https://twitch.tv/esl")
+    );
 }
 
 #[test]
@@ -26,5 +29,7 @@ fn test_parse_pandascore_tournament() {
 #[test]
 fn test_parse_pandascore_empty() {
     assert!(PandaScoreProvider::parse_matches("[]").unwrap().is_empty());
-    assert!(PandaScoreProvider::parse_tournaments("[]").unwrap().is_empty());
+    assert!(PandaScoreProvider::parse_tournaments("[]")
+        .unwrap()
+        .is_empty());
 }

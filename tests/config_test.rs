@@ -12,10 +12,12 @@ fn test_default_config() {
 fn test_config_roundtrip() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join("config.toml");
-    let mut c = Config::default();
-    c.refresh_interval = 30;
+    let mut c = Config {
+        refresh_interval: 30,
+        pandascore_api_key: Some("test-key".to_string()),
+        ..Config::default()
+    };
     c.favorite_teams.push("Team Liquid".to_string());
-    c.pandascore_api_key = Some("test-key".to_string());
     c.save_to(&path).unwrap();
     let loaded = Config::load_from(&path).unwrap();
     assert_eq!(loaded.refresh_interval, 30);
