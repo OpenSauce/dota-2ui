@@ -108,7 +108,7 @@ async fn run_loop(
     let (tx, mut rx) = tokio::sync::mpsc::channel::<Result<FetchResult, String>>(2);
     let bracket_disk_cache = DiskCache::new(DiskCache::default_path().join("brackets"));
     let (bracket_tx, mut bracket_rx) =
-        tokio::sync::mpsc::channel::<Result<(String, Option<models::Bracket>), String>>(2);
+        tokio::sync::mpsc::channel::<Result<(String, Option<models::Bracket>), (String, String)>>(2);
 
     loop {
         terminal.draw(|frame| ui::render(frame, app))?;
@@ -231,6 +231,7 @@ async fn run_loop(
                             .collect();
                         tokio::spawn(async move {
                             let provider = api::provider_from_config(api_key.as_deref());
+                            let tid_for_err = tid_clone.clone();
                             let result = provider
                                 .fetch_bracket(&tid_clone)
                                 .await
@@ -240,7 +241,7 @@ async fn run_loop(
                                     });
                                     (tid_clone, bracket)
                                 })
-                                .map_err(|e| e.to_string());
+                                .map_err(|e| (tid_for_err, e.to_string()));
                             let _ = bracket_tx.send(result).await;
                         });
                     }
@@ -260,8 +261,9 @@ async fn run_loop(
                         app.bracket_attempted.insert(tid);
                     }
                 }
-                Err(e) => {
+                Err((tid, e)) => {
                     app.error_message = Some(format!("Bracket fetch error: {}", e));
+                    app.bracket_attempted.insert(tid);
                 }
             }
             app.bracket_loading = false;

@@ -75,6 +75,13 @@ struct PsTournament {
     end_at: Option<String>,
     tier: Option<String>,
     prizepool: Option<String>,
+    league: Option<PsLeague>,
+    serie: Option<PsSerie>,
+}
+
+#[derive(Deserialize)]
+struct PsSerie {
+    full_name: Option<String>,
 }
 
 impl PandaScoreProvider {
@@ -202,9 +209,18 @@ impl PandaScoreProvider {
             }
             .to_string();
 
+            // Build display name: "League Serie" (e.g. "ESL One 2026") or fall back to tournament name
+            let display_name = match (&t.league, &t.serie) {
+                (Some(league), Some(serie)) if serie.full_name.is_some() => {
+                    format!("{} {}", league.name, serie.full_name.as_ref().unwrap())
+                }
+                (Some(league), _) => league.name.clone(),
+                _ => t.name.clone(),
+            };
+
             tournaments.push(Tournament {
                 id: t.id.to_string(),
-                name: t.name,
+                name: display_name,
                 start_date,
                 end_date,
                 status,
