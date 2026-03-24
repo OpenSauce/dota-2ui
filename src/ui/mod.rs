@@ -1,8 +1,8 @@
 pub mod broadcast;
 pub mod dashboard;
+pub mod settings;
 pub mod tournament_browser;
 pub mod tournament_detail;
-pub mod settings;
 pub mod widgets;
 
 use crate::app::App;

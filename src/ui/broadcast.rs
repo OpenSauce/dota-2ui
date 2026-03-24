@@ -1,5 +1,5 @@
 use crate::app::App;
-use crate::models::{MatchStatus, Match};
+use crate::models::{Match, MatchStatus};
 use crate::ui::widgets::match_card;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Gauge, Paragraph};
@@ -8,19 +8,24 @@ use ratatui::widgets::{Block, Borders, Gauge, Paragraph};
 fn build_ticker(app: &App) -> String {
     let mut parts: Vec<String> = Vec::new();
 
+    let favorites = &app.config.favorite_teams;
     for m in &app.matches {
+        let is_fav = favorites.iter().any(|fav| m.involves_team(fav));
+        let prefix = if is_fav { "★ " } else { "" };
         match m.status {
             MatchStatus::Live => {
                 parts.push(format!(
-                    "{} {} {}:{} {} (LIVE)",
-                    m.team_a.tag, m.series_format, m.score_a, m.score_b, m.team_b.tag
+                    "{}{} {}:{} {} {} (LIVE)",
+                    prefix, m.team_a.tag, m.score_a, m.score_b, m.team_b.tag, m.series_format
                 ));
             }
             MatchStatus::Upcoming => {
-                let time_str = m.start_time.format("%H:%M").to_string();
                 parts.push(format!(
-                    "{} vs {} ({} UTC)",
-                    m.team_a.tag, m.team_b.tag, time_str
+                    "{}{} vs {} ({})",
+                    prefix,
+                    m.team_a.tag,
+                    m.team_b.tag,
+                    m.relative_time()
                 ));
             }
             _ => {}
@@ -31,7 +36,10 @@ fn build_ticker(app: &App) -> String {
         // Fallback: show next tournament countdown or generic message
         if let Some(t) = app.upcoming_tournaments().first() {
             if let Some((d, h, m, _s)) = t.countdown() {
-                format!("  No live matches -- next: {} in {}d {}h {}m  ", t.name, d, h, m)
+                format!(
+                    "  No live matches -- next: {} in {}d {}h {}m  ",
+                    t.name, d, h, m
+                )
             } else {
                 "  No live matches  ".to_string()
             }
@@ -62,12 +70,7 @@ fn featured_match(app: &App) -> Option<usize> {
     if !favorites.is_empty() {
         for (i, m) in app.matches.iter().enumerate() {
             if m.status == MatchStatus::Live {
-                let involves_fav = favorites.iter().any(|fav| {
-                    m.team_a.name.eq_ignore_ascii_case(fav)
-                        || m.team_b.name.eq_ignore_ascii_case(fav)
-                        || m.team_a.tag.eq_ignore_ascii_case(fav)
-                        || m.team_b.tag.eq_ignore_ascii_case(fav)
-                });
+                let involves_fav = favorites.iter().any(|fav| m.involves_team(fav));
                 if involves_fav {
                     return Some(i);
                 }
@@ -114,11 +117,8 @@ pub fn render(frame: &mut Frame, app: &App) {
     let main_area = vertical[1];
     let bottom_area = vertical[2];
 
-    let horizontal = Layout::horizontal([
-        Constraint::Percentage(60),
-        Constraint::Percentage(40),
-    ])
-    .split(main_area);
+    let horizontal = Layout::horizontal([Constraint::Percentage(60), Constraint::Percentage(40)])
+        .split(main_area);
 
     let center_area = horizontal[0];
     let side_area = horizontal[1];
@@ -142,11 +142,8 @@ fn render_ticker(frame: &mut Frame, app: &App, area: Rect) {
         .take(area.width as usize)
         .collect();
 
-    let paragraph = Paragraph::new(visible).style(
-        Style::default()
-            .fg(Color::White)
-            .bg(Color::DarkGray),
-    );
+    let paragraph =
+        Paragraph::new(visible).style(Style::default().fg(Color::White).bg(Color::DarkGray));
     frame.render_widget(paragraph, area);
 }
 
@@ -188,21 +185,18 @@ fn render_center_stage(frame: &mut Frame, app: &App, area: Rect, featured: Optio
     // Status line
     let status_line = match m.status {
         MatchStatus::Live => {
-            let blink_on = (app.tick_count / 5) % 2 == 0;
+            let blink_on = (app.tick_count / 5).is_multiple_of(2);
             let style = if blink_on {
-                Style::default()
-                    .fg(Color::Red)
-                    .add_modifier(Modifier::BOLD)
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::DarkGray)
             };
             Line::from(Span::styled("LIVE", style)).alignment(Alignment::Center)
         }
-        MatchStatus::Upcoming => Line::from(Span::styled(
-            "UPCOMING",
-            Style::default().fg(Color::Yellow),
-        ))
-        .alignment(Alignment::Center),
+        MatchStatus::Upcoming => {
+            Line::from(Span::styled("UPCOMING", Style::default().fg(Color::Yellow)))
+                .alignment(Alignment::Center)
+        }
         MatchStatus::Completed => Line::from(Span::styled(
             "COMPLETED",
             Style::default().fg(Color::DarkGray),
@@ -264,16 +258,42 @@ fn render_center_stage(frame: &mut Frame, app: &App, area: Rect, featured: Optio
                 "In progress".to_string()
             }
         }
-        MatchStatus::Upcoming => m.start_time.format("%b %d, %H:%M UTC").to_string(),
+        MatchStatus::Upcoming => m.relative_time(),
         MatchStatus::Completed => "Match completed".to_string(),
     };
+    let time_color = match m.status {
+        MatchStatus::Upcoming => m.urgency_color(),
+        _ => Color::DarkGray,
+    };
     lines.push(
-        Line::from(Span::styled(
-            time_info,
-            Style::default().fg(Color::DarkGray),
-        ))
-        .alignment(Alignment::Center),
+        Line::from(Span::styled(time_info, Style::default().fg(time_color)))
+            .alignment(Alignment::Center),
     );
+
+    // "Up next" preview: find the next upcoming match excluding the featured one
+    if let Some(next) = app
+        .matches
+        .iter()
+        .enumerate()
+        .filter(|(i, nm)| *i != featured_idx && nm.status == MatchStatus::Upcoming)
+        .min_by_key(|(_, nm)| nm.start_time)
+        .map(|(_, nm)| nm)
+    {
+        lines.push(Line::from(""));
+        let up_next_text = format!(
+            "Up next: {} vs {} {}",
+            next.team_a.name,
+            next.team_b.name,
+            next.relative_time()
+        );
+        lines.push(
+            Line::from(Span::styled(
+                up_next_text,
+                Style::default().fg(next.urgency_color()),
+            ))
+            .alignment(Alignment::Center),
+        );
+    }
 
     let total_lines = lines.len() as u16;
     let start_y = if inner.height > total_lines {
@@ -288,7 +308,6 @@ fn render_center_stage(frame: &mut Frame, app: &App, area: Rect, featured: Optio
 }
 
 fn render_side_rail(frame: &mut Frame, app: &App, area: Rect, featured_idx: Option<usize>) {
-
     // Collect live + upcoming, excluding the featured match
     let mut rail_matches: Vec<&Match> = Vec::new();
     for (i, m) in app.matches.iter().enumerate() {
@@ -321,7 +340,14 @@ fn render_side_rail(frame: &mut Frame, app: &App, area: Rect, featured_idx: Opti
             break;
         }
         let row = Rect::new(padded.x, y, padded.width, 1);
-        match_card::render_match_card(m, row, buf, true, app.tick_count);
+        match_card::render_match_card(
+            m,
+            row,
+            buf,
+            true,
+            app.tick_count,
+            &app.config.favorite_teams,
+        );
         y += 1;
     }
 }

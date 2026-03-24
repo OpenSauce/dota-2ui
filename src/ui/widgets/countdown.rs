@@ -24,9 +24,7 @@ pub fn render_countdown(t: &Tournament, area: Rect, buf: &mut Buffer) {
                 Span::styled("Soon ", Style::default().fg(Color::Yellow))
             }
         }
-        TournamentStatus::Completed => {
-            Span::styled("Done ", Style::default().fg(Color::DarkGray))
-        }
+        TournamentStatus::Completed => Span::styled("Done ", Style::default().fg(Color::DarkGray)),
     };
 
     let date_range = format!(
@@ -50,15 +48,29 @@ pub fn render_countdown_with_gauge(t: &Tournament, area: Rect, buf: &mut Buffer)
         render_countdown(t, area, buf);
         return;
     }
-    let top = Rect { x: area.x, y: area.y, width: area.width, height: 1 };
+    let top = Rect {
+        x: area.x,
+        y: area.y,
+        width: area.width,
+        height: 1,
+    };
     render_countdown(t, top, buf);
 
     if t.status == TournamentStatus::Upcoming {
-        let gauge_area = Rect { x: area.x, y: area.y + 1, width: area.width, height: 1 };
+        let gauge_area = Rect {
+            x: area.x,
+            y: area.y + 1,
+            width: area.width,
+            height: 1,
+        };
         let ratio = t.countdown_ratio();
-        let color = if ratio > 0.8 { Color::Red }
-            else if ratio > 0.5 { Color::Yellow }
-            else { Color::DarkGray };
+        let color = if ratio > 0.8 {
+            Color::Red
+        } else if ratio > 0.5 {
+            Color::Yellow
+        } else {
+            Color::DarkGray
+        };
         Gauge::default()
             .ratio(ratio)
             .gauge_style(Style::default().fg(color))
