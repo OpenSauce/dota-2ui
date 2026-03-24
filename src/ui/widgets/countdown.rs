@@ -36,7 +36,7 @@ pub fn render_countdown(t: &Tournament, area: Rect, buf: &mut Buffer) {
 
     let line = Line::from(vec![
         status_span,
-        Span::styled(&t.name, Style::default().fg(Color::White)),
+        Span::styled(&t.name, Style::default().fg(t.tier_color())),
         Span::raw("  "),
         Span::styled(date_range, Style::default().fg(Color::DarkGray)),
     ]);

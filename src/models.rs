@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -66,6 +67,15 @@ pub struct Tournament {
 }
 
 impl Tournament {
+    pub fn tier_color(&self) -> Color {
+        match self.tier.as_str() {
+            "1" | "S-Tier" | "Major" => Color::Yellow,
+            "2" | "A-Tier" | "Minor" => Color::Gray,
+            "3" | "B-Tier" | "Qualifier" => Color::White,
+            _ => Color::DarkGray,
+        }
+    }
+
     pub fn countdown(&self) -> Option<(i64, i64, i64, i64)> {
         if self.status != TournamentStatus::Upcoming { return None; }
         let diff = self.start_date - Utc::now();
