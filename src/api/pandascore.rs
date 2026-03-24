@@ -3,6 +3,7 @@ use crate::models::*;
 use chrono::{DateTime, Utc};
 use reqwest::Client;
 use serde::Deserialize;
+use std::collections::BTreeMap;
 use std::future::Future;
 use std::pin::Pin;
 
@@ -24,6 +25,19 @@ struct PsMatch {
     league: Option<PsLeague>,
     tournament_id: Option<u64>,
     streams_list: Option<Vec<PsStream>>,
+    #[serde(default)]
+    round: Option<i32>,
+    #[serde(default)]
+    position: Option<u32>,
+    #[serde(default)]
+    previous_matches: Option<Vec<PsPreviousMatch>>,
+}
+
+#[derive(Deserialize)]
+struct PsPreviousMatch {
+    match_id: u64,
+    #[serde(rename = "type")]
+    link_type: String,
 }
 
 #[derive(Deserialize)]
@@ -215,9 +229,188 @@ impl PandaScoreProvider {
         }
         Ok(resp.text().await?)
     }
+
+    /// Reconstruct a bracket from PandaScore match JSON data.
+    pub fn reconstruct_bracket(json: &str) -> Result<Bracket, ApiError> {
+        let ps_matches: Vec<PsMatch> =
+            serde_json::from_str(json).map_err(|e| ApiError::Parse(e.to_string()))?;
+
+        // Detect bracket type: if any match has a "loser" previous_match link → DoubleElim
+        let has_loser_link = ps_matches.iter().any(|m| {
+            m.previous_matches
+                .as_ref()
+                .map(|prev| prev.iter().any(|pm| pm.link_type == "loser"))
+                .unwrap_or(false)
+        });
+        let bracket_type = if has_loser_link {
+            BracketType::DoubleElim
+        } else {
+            BracketType::SingleElim
+        };
+
+        // Group by round number
+        let mut round_map: BTreeMap<i32, Vec<&PsMatch>> = BTreeMap::new();
+        for m in &ps_matches {
+            let round = m.round.unwrap_or(1);
+            round_map.entry(round).or_default().push(m);
+        }
+
+        // Separate upper (positive/zero rounds) and lower (negative rounds)
+        let upper_round_nums: Vec<i32> = round_map.keys().filter(|&&r| r >= 0).copied().collect();
+        let lower_round_nums: Vec<i32> = round_map.keys().filter(|&&r| r < 0).copied().collect();
+
+        let max_upper = upper_round_nums.iter().copied().max().unwrap_or(0);
+
+        let upper_rounds: Vec<BracketRound> = upper_round_nums
+            .iter()
+            .map(|&round_num| {
+                let mut matches_in_round: Vec<&PsMatch> =
+                    round_map.get(&round_num).cloned().unwrap_or_default();
+                matches_in_round.sort_by_key(|m| m.position.unwrap_or(0));
+
+                let bracket_matches: Vec<BracketMatch> = matches_in_round
+                    .iter()
+                    .map(|m| {
+                        let team_a = m.opponents.first().map(|o| o.opponent.name.clone());
+                        let team_b = m.opponents.get(1).map(|o| o.opponent.name.clone());
+                        let score_a = m.results.first().map(|r| r.score).unwrap_or(0);
+                        let score_b = m.results.get(1).map(|r| r.score).unwrap_or(0);
+                        let status = match m.status.as_str() {
+                            "running" => MatchStatus::Live,
+                            "finished" => MatchStatus::Completed,
+                            _ => MatchStatus::Upcoming,
+                        };
+                        let winner_to = find_next_match(&ps_matches, m.id, "winner");
+                        let loser_to = find_next_match(&ps_matches, m.id, "loser");
+
+                        BracketMatch {
+                            match_id: m.id.to_string(),
+                            round: round_num as usize,
+                            position: m.position.unwrap_or(0) as usize,
+                            team_a,
+                            team_b,
+                            score_a,
+                            score_b,
+                            status,
+                            winner_to,
+                            loser_to,
+                        }
+                    })
+                    .collect();
+
+                BracketRound {
+                    round: round_num as usize,
+                    name: name_round(round_num, max_upper),
+                    matches: bracket_matches,
+                }
+            })
+            .collect();
+
+        let lower_rounds: Option<Vec<BracketRound>> = if lower_round_nums.is_empty() {
+            None
+        } else {
+            let max_lower = lower_round_nums.iter().copied().max().unwrap_or(0);
+            Some(
+                lower_round_nums
+                    .iter()
+                    .map(|&round_num| {
+                        let mut matches_in_round: Vec<&PsMatch> =
+                            round_map.get(&round_num).cloned().unwrap_or_default();
+                        matches_in_round.sort_by_key(|m| m.position.unwrap_or(0));
+
+                        let bracket_matches: Vec<BracketMatch> = matches_in_round
+                            .iter()
+                            .map(|m| {
+                                let team_a = m.opponents.first().map(|o| o.opponent.name.clone());
+                                let team_b = m.opponents.get(1).map(|o| o.opponent.name.clone());
+                                let score_a = m.results.first().map(|r| r.score).unwrap_or(0);
+                                let score_b = m.results.get(1).map(|r| r.score).unwrap_or(0);
+                                let status = match m.status.as_str() {
+                                    "running" => MatchStatus::Live,
+                                    "finished" => MatchStatus::Completed,
+                                    _ => MatchStatus::Upcoming,
+                                };
+                                let winner_to = find_next_match(&ps_matches, m.id, "winner");
+                                let loser_to = find_next_match(&ps_matches, m.id, "loser");
+
+                                BracketMatch {
+                                    match_id: m.id.to_string(),
+                                    round: round_num.unsigned_abs() as usize,
+                                    position: m.position.unwrap_or(0) as usize,
+                                    team_a,
+                                    team_b,
+                                    score_a,
+                                    score_b,
+                                    status,
+                                    winner_to,
+                                    loser_to,
+                                }
+                            })
+                            .collect();
+
+                        BracketRound {
+                            round: round_num.unsigned_abs() as usize,
+                            name: name_round(round_num.abs(), max_lower.abs()),
+                            matches: bracket_matches,
+                        }
+                    })
+                    .collect(),
+            )
+        };
+
+        Ok(Bracket {
+            bracket_type,
+            upper_rounds,
+            lower_rounds,
+            grand_final: None,
+        })
+    }
+}
+
+fn name_round(round: i32, max_round: i32) -> String {
+    let from_end = max_round - round;
+    match from_end {
+        0 => "Final".into(),
+        1 => "Semifinals".into(),
+        2 => "Quarterfinals".into(),
+        _ => format!("Round {}", round),
+    }
+}
+
+fn find_next_match(all_matches: &[PsMatch], source_id: u64, link_type: &str) -> Option<(usize, usize)> {
+    for m in all_matches {
+        if let Some(prev) = &m.previous_matches {
+            for pm in prev {
+                if pm.match_id == source_id && pm.link_type == link_type {
+                    let round = m.round.unwrap_or(1).unsigned_abs() as usize;
+                    let pos = m.position.unwrap_or(0) as usize;
+                    return Some((round, pos));
+                }
+            }
+        }
+    }
+    None
 }
 
 impl MatchProvider for PandaScoreProvider {
+    fn fetch_bracket(
+        &self,
+        tournament_id: &str,
+    ) -> Pin<Box<dyn Future<Output = ApiResult<Option<crate::models::Bracket>>> + Send + '_>> {
+        let tid = tournament_id.to_string();
+        Box::pin(async move {
+            let json = self
+                .get(&format!("/tournaments/{}/matches?per_page=50", tid))
+                .await?;
+            let bracket = Self::reconstruct_bracket(&json)?;
+            if bracket.upper_rounds.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(bracket))
+            }
+        })
+    }
+
     fn fetch_all(&self) -> Pin<Box<dyn Future<Output = ApiResult<FetchAllResult>> + Send + '_>> {
         Box::pin(async move {
             let running_m = self

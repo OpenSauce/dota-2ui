@@ -1,3 +1,4 @@
+use chrono::Utc;
 use dota_2ui::api::liquipedia::LiquipediaProvider;
 use dota_2ui::models::*;
 
@@ -111,4 +112,36 @@ fn test_derive_tournaments() {
     let tournaments = LiquipediaProvider::derive_tournaments(&matches);
     assert_eq!(tournaments.len(), 1);
     assert!(tournaments[0].name.contains("ESL One Birmingham 2026"));
+}
+
+#[test]
+fn build_stage_bracket_groups_by_stage() {
+    let matches = vec![
+        Match {
+            id: "m1".into(),
+            team_a: Team { name: "OG".into(), tag: "OG".into(), region: None },
+            team_b: Team { name: "Nigma".into(), tag: "NGX".into(), region: None },
+            score_a: 2, score_b: 0, status: MatchStatus::Completed,
+            series_format: SeriesFormat::Bo3,
+            tournament_name: "Test Cup".into(), tournament_id: "t1".into(),
+            start_time: Utc::now(), stream_url: None, game_time_secs: None,
+            stage: Some("Group Stage".into()),
+        },
+        Match {
+            id: "m2".into(),
+            team_a: Team { name: "Liquid".into(), tag: "TL".into(), region: None },
+            team_b: Team { name: "Spirit".into(), tag: "TS".into(), region: None },
+            score_a: 1, score_b: 2, status: MatchStatus::Completed,
+            series_format: SeriesFormat::Bo3,
+            tournament_name: "Test Cup".into(), tournament_id: "t1".into(),
+            start_time: Utc::now(), stream_url: None, game_time_secs: None,
+            stage: Some("Playoffs".into()),
+        },
+    ];
+
+    let bracket = LiquipediaProvider::build_stage_bracket(&matches).unwrap();
+    assert_eq!(bracket.bracket_type, BracketType::Unknown);
+    assert_eq!(bracket.upper_rounds.len(), 2);
+    assert_eq!(bracket.upper_rounds[0].name, "Group Stage");
+    assert_eq!(bracket.upper_rounds[1].name, "Playoffs");
 }

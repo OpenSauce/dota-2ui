@@ -39,6 +39,14 @@ pub struct FetchAllResult {
 pub trait MatchProvider: Send + Sync {
     /// Fetch all data in as few API requests as possible.
     fn fetch_all(&self) -> Pin<Box<dyn Future<Output = ApiResult<FetchAllResult>> + Send + '_>>;
+
+    /// Fetch bracket data for a specific tournament. Returns None if unavailable.
+    fn fetch_bracket(
+        &self,
+        _tournament_id: &str,
+    ) -> Pin<Box<dyn Future<Output = ApiResult<Option<crate::models::Bracket>>> + Send + '_>> {
+        Box::pin(async { Ok(None) })
+    }
 }
 
 pub fn provider_from_config(api_key: Option<&str>) -> Box<dyn MatchProvider> {

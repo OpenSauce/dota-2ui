@@ -4,7 +4,7 @@ use chrono::{DateTime, TimeZone, Utc};
 use regex::Regex;
 use reqwest::Client;
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::future::Future;
 use std::pin::Pin;
 
@@ -205,6 +205,52 @@ impl LiquipediaProvider {
                 }
             })
             .collect()
+    }
+
+    /// Build a bracket by grouping matches by their stage field.
+    /// This is a fallback for when no proper bracket data is available.
+    pub fn build_stage_bracket(matches: &[Match]) -> Option<Bracket> {
+        let mut stage_map: BTreeMap<String, Vec<&Match>> = BTreeMap::new();
+        for m in matches {
+            let stage = m.stage.clone().unwrap_or_else(|| "Matches".into());
+            stage_map.entry(stage).or_default().push(m);
+        }
+        if stage_map.is_empty() {
+            return None;
+        }
+        let upper_rounds: Vec<BracketRound> = stage_map
+            .into_iter()
+            .enumerate()
+            .map(|(i, (stage_name, stage_matches))| {
+                let bracket_matches: Vec<BracketMatch> = stage_matches
+                    .iter()
+                    .enumerate()
+                    .map(|(pos, m)| BracketMatch {
+                        match_id: m.id.clone(),
+                        round: i + 1,
+                        position: pos,
+                        team_a: Some(m.team_a.name.clone()),
+                        team_b: Some(m.team_b.name.clone()),
+                        score_a: m.score_a,
+                        score_b: m.score_b,
+                        status: m.status,
+                        winner_to: None,
+                        loser_to: None,
+                    })
+                    .collect();
+                BracketRound {
+                    round: i + 1,
+                    name: stage_name,
+                    matches: bracket_matches,
+                }
+            })
+            .collect();
+        Some(Bracket {
+            bracket_type: BracketType::Unknown,
+            upper_rounds,
+            lower_rounds: None,
+            grand_final: None,
+        })
     }
 
     async fn fetch_parse_page(&self, page: &str) -> ApiResult<String> {

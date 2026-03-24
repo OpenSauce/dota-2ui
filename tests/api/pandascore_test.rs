@@ -48,6 +48,60 @@ fn match_uses_real_tournament_id() {
 }
 
 #[test]
+fn reconstruct_bracket_from_matches() {
+    let json = r#"[
+        {
+            "id": 1, "status": "finished", "number_of_games": 3,
+            "scheduled_at": "2026-03-24T10:00:00Z",
+            "opponents": [
+                {"opponent": {"name": "OG", "acronym": "OG", "location": null}},
+                {"opponent": {"name": "Nigma", "acronym": "NGX", "location": null}}
+            ],
+            "results": [{"score": 2}, {"score": 0}],
+            "league": {"name": "Test Cup"},
+            "tournament_id": 100,
+            "streams_list": [],
+            "round": 1, "position": 1, "previous_matches": []
+        },
+        {
+            "id": 2, "status": "finished", "number_of_games": 3,
+            "scheduled_at": "2026-03-24T13:00:00Z",
+            "opponents": [
+                {"opponent": {"name": "Team Liquid", "acronym": "TL", "location": null}},
+                {"opponent": {"name": "Team Spirit", "acronym": "TS", "location": null}}
+            ],
+            "results": [{"score": 2}, {"score": 1}],
+            "league": {"name": "Test Cup"},
+            "tournament_id": 100,
+            "streams_list": [],
+            "round": 1, "position": 2, "previous_matches": []
+        },
+        {
+            "id": 3, "status": "running", "number_of_games": 5,
+            "scheduled_at": "2026-03-24T16:00:00Z",
+            "opponents": [
+                {"opponent": {"name": "OG", "acronym": "OG", "location": null}},
+                {"opponent": {"name": "Team Liquid", "acronym": "TL", "location": null}}
+            ],
+            "results": [{"score": 1}, {"score": 1}],
+            "league": {"name": "Test Cup"},
+            "tournament_id": 100,
+            "streams_list": [],
+            "round": 2, "position": 1,
+            "previous_matches": [{"match_id": 1, "type": "winner"}, {"match_id": 2, "type": "winner"}]
+        }
+    ]"#;
+
+    let bracket = dota_2ui::api::pandascore::PandaScoreProvider::reconstruct_bracket(json).unwrap();
+    assert_eq!(bracket.bracket_type, dota_2ui::models::BracketType::SingleElim);
+    assert_eq!(bracket.upper_rounds.len(), 2);
+    assert_eq!(bracket.upper_rounds[0].matches.len(), 2);
+    assert_eq!(bracket.upper_rounds[1].matches.len(), 1);
+    assert_eq!(bracket.upper_rounds[0].matches[0].team_a, Some("OG".into()));
+    assert_eq!(bracket.upper_rounds[1].matches[0].winner_to, None);
+}
+
+#[test]
 fn test_parse_pandascore_empty() {
     assert!(PandaScoreProvider::parse_matches("[]").unwrap().is_empty());
     assert!(PandaScoreProvider::parse_tournaments("[]")
