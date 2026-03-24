@@ -135,6 +135,7 @@ pub fn render(frame: &mut Frame, app: &App) {
                 },
                 frame.buffer_mut(),
                 true,
+                app.tick_count,
             );
         }
     }

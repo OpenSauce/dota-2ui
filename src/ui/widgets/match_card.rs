@@ -3,7 +3,7 @@ use ratatui::prelude::*;
 use ratatui::widgets::Paragraph;
 
 /// Render a match card. If `compact` is true, renders on a single line (no tournament line).
-pub fn render_match_card(m: &Match, area: Rect, buf: &mut Buffer, compact: bool) {
+pub fn render_match_card(m: &Match, area: Rect, buf: &mut Buffer, compact: bool, tick_count: u64) {
     let score_text = match m.status {
         MatchStatus::Upcoming => "vs".to_string(),
         _ => format!("{}:{}", m.score_a, m.score_b),
@@ -31,10 +31,20 @@ pub fn render_match_card(m: &Match, area: Rect, buf: &mut Buffer, compact: bool)
 
     // Status indicator
     match m.status {
-        MatchStatus::Live => spans.push(Span::styled(
-            "LIVE ",
-            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
-        )),
+        MatchStatus::Live => {
+            let blink_on = (tick_count / 5) % 2 == 0;
+            if blink_on {
+                spans.push(Span::styled(
+                    "LIVE ",
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                ));
+            } else {
+                spans.push(Span::styled(
+                    "LIVE ",
+                    Style::default().fg(Color::DarkGray),
+                ));
+            }
+        }
         MatchStatus::Completed => spans.push(Span::styled(
             "END  ",
             Style::default().fg(Color::DarkGray),

@@ -89,6 +89,7 @@ fn render_live_panel(frame: &mut Frame, app: &App, area: Rect) {
             Rect { x, y, width: col_width, height: 1 },
             frame.buffer_mut(),
             true,
+            app.tick_count,
         );
     }
 }
@@ -124,6 +125,7 @@ fn render_upcoming_panel(frame: &mut Frame, app: &App, area: Rect) {
             Rect { x: inner.x, y, width: inner.width, height: 2 },
             frame.buffer_mut(),
             false,
+            app.tick_count,
         );
     }
 }
@@ -189,6 +191,7 @@ fn render_right_panel(frame: &mut Frame, app: &App, area: Rect) {
                     Rect { x: f_inner.x, y, width: f_inner.width, height: 1 },
                     frame.buffer_mut(),
                     true,
+                    app.tick_count,
                 );
             }
         }
