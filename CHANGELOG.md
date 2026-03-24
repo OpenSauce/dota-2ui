@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-03-24
+
+### Added
+- Relative timestamps on all matches ("in 20m", "in 1d 3h", "starting soon")
+- Absolute local time alongside relative time for upcoming matches ("in 20m (14:00)")
+- Color-coded urgency for countdowns (red <15m, yellow <2h, default otherwise)
+- Favorite team toggle via `s` key with team picker dialog (j/k to select, Enter to confirm)
+- Favorite tournament toggle via `s` key in tournament browser/detail
+- Favorites panel now shows matches from both favorite teams AND favorite tournaments
+- Search functionality (`/` key) — filter matches/tournaments by name in real-time
+- Filter cycling (`f` key) — All / Live Only / Upcoming Only / Favorites Only
+- Tournament detail tabs (Overview / Matches / Info) with `m` and `d` keys
+- Tournament Info tab showing dates, tier, prize pool, location metadata
+- Completed matches shown in tournament Matches tab
+- Match stage info extracted from Liquipedia (Group Stage, Playoffs, etc.)
+- "Up next" preview in broadcast center stage showing next upcoming match
+- Terminal title updates with featured match info (visible in tmux tab)
+- Terminal bell on favorite team going live (zero-dependency alert)
+- Visual selection indicator in all dashboard panels (grid-aware for live panel)
+- Toast messages for favorite toggle feedback (3-second auto-dismiss)
+- Auto-detect terminal width for compact mode (<100 cols)
+- GitHub Actions CI workflow (check, clippy, test, format)
+- Makefile with `make lint`, `make test`, `make fmt` targets
+- `Match::involves_team()` helper for consistent case-insensitive team matching
+- `Match::relative_time()` and `Match::urgency_color()` model methods
+- `MatchFilter` and `TournamentTab` enums for UI state
+- 15 new unit tests (scroll clamping, filter cycling, search, favorites, picker, timestamps)
+
+### Changed
+- All times now displayed in local timezone instead of UTC
+- Keybind bar shows all functional keybinds (s/Fav, //Search, f/Filter, m/Matches, d/Info)
+- Keybind bar shows active filter and search query status
+- Star indicator (★) uses fixed-width column for consistent alignment
+- Favorite matching uses `involves_team()` (checks name AND tag, case-insensitive)
+- `scroll_offset` now clamped to panel list length (prevents silent no-ops)
+- Liquipedia status detection simplified (removed redundant branch)
+
+### Fixed
+- Pre-existing clippy warnings resolved (manual_clamp, manual_div_ceil, if_same_then_else, etc.)
+
 ## [0.2.0] - 2026-03-24
 
 ### Added
