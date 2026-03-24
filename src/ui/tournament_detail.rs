@@ -110,13 +110,7 @@ pub fn render(frame: &mut Frame, app: &App) {
             render_matches_tab(frame, app, tournament, layout[2], true);
         }
         TournamentTab::Bracket => {
-            frame.render_widget(
-                Paragraph::new(Span::styled(
-                    "Bracket view (coming soon)",
-                    Style::default().fg(Color::DarkGray),
-                )),
-                layout[2],
-            );
+            render_bracket_tab(frame, app, tournament, layout[2]);
         }
         TournamentTab::Info => {
             render_info_tab(frame, tournament, layout[2]);
@@ -284,4 +278,63 @@ fn render_info_tab(frame: &mut Frame, tournament: &crate::models::Tournament, ar
     }
 
     frame.render_widget(Paragraph::new(lines), inner);
+}
+
+fn render_bracket_tab(
+    frame: &mut Frame,
+    app: &App,
+    tournament: &crate::models::Tournament,
+    area: Rect,
+) {
+    use crate::ui::widgets::bracket_column;
+
+    if let Some(bracket) = app.bracket_cache.get(&tournament.id) {
+        match app.bracket_view_mode {
+            crate::models::BracketViewMode::Column => {
+                bracket_column::render_column_bracket(
+                    bracket,
+                    area,
+                    frame.buffer_mut(),
+                    app.bracket_round_offset,
+                    app.bracket_match_offset,
+                    &app.config.favorite_teams,
+                );
+            }
+            crate::models::BracketViewMode::AsciiTree => {
+                // Task 8 will add the tree renderer; for now fall back to column
+                bracket_column::render_column_bracket(
+                    bracket,
+                    area,
+                    frame.buffer_mut(),
+                    app.bracket_round_offset,
+                    app.bracket_match_offset,
+                    &app.config.favorite_teams,
+                );
+            }
+        }
+    } else if app.bracket_loading {
+        frame.render_widget(
+            Paragraph::new(Span::styled(
+                "Loading bracket...",
+                Style::default().fg(Color::Yellow),
+            )),
+            area,
+        );
+    } else {
+        let has_pandascore = app.config.pandascore_api_key.is_some();
+        let msg = if has_pandascore {
+            "No bracket data available for this tournament."
+        } else {
+            "Full brackets require a PandaScore API key. Configure in Settings (,)."
+        };
+        let split = Layout::vertical([Constraint::Length(2), Constraint::Min(3)]).split(area);
+        frame.render_widget(
+            Paragraph::new(Span::styled(
+                msg,
+                Style::default().fg(Color::DarkGray),
+            )),
+            split[0],
+        );
+        render_matches_tab(frame, app, tournament, split[1], true);
+    }
 }

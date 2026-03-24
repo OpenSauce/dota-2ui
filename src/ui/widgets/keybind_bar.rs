@@ -91,6 +91,19 @@ pub fn render_keybind_bar(app: &App, area: Rect, buf: &mut Buffer) {
         spans.push(Span::styled("│ ", Style::default().fg(Color::DarkGray)));
     }
 
+    // Bracket-specific keybinds
+    if *screen == Screen::TournamentDetail
+        && app.tournament_detail_tab == crate::input::TournamentTab::Bracket
+    {
+        if let Some(ref tid) = app.selected_tournament_id {
+            if let Some(bracket) = app.bracket_cache.get(tid) {
+                if bracket.bracket_type == crate::models::BracketType::SingleElim {
+                    spans.push(Span::styled("v:view ", Style::default().fg(Color::DarkGray)));
+                }
+            }
+        }
+    }
+
     for (i, (key, desc)) in binds.iter().enumerate() {
         spans.push(Span::styled(
             format!("[{}]", key),
