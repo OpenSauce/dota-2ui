@@ -192,7 +192,7 @@ impl App {
                 }
             }
             AppAction::ShowGroups => {
-                // No group data available — stays on current tab
+                self.tournament_detail_tab = TournamentTab::Overview;
             }
             AppAction::ShowMatches => {
                 self.tournament_detail_tab = TournamentTab::Matches;

@@ -100,8 +100,13 @@ pub fn render(frame: &mut Frame, app: &App) {
 
     // Content area based on active tab
     match app.tournament_detail_tab {
-        TournamentTab::Overview | TournamentTab::Matches => {
-            render_matches_tab(frame, app, tournament, layout[2]);
+        TournamentTab::Overview => {
+            // Overview: live + upcoming matches only (the default glanceable view)
+            render_matches_tab(frame, app, tournament, layout[2], false);
+        }
+        TournamentTab::Matches => {
+            // Matches: ALL matches including completed
+            render_matches_tab(frame, app, tournament, layout[2], true);
         }
         TournamentTab::Info => {
             render_info_tab(frame, tournament, layout[2]);
@@ -143,12 +148,13 @@ fn render_matches_tab(
     app: &App,
     tournament: &crate::models::Tournament,
     area: Rect,
+    include_completed: bool,
 ) {
-    // Include ALL matches (including completed) for this tournament
     let tournament_matches: Vec<_> = app
         .matches
         .iter()
         .filter(|m| m.tournament_name == tournament.name || m.tournament_id == tournament.id)
+        .filter(|m| include_completed || m.status != crate::models::MatchStatus::Completed)
         .collect();
 
     let title = format!(" Matches ({}) ", tournament_matches.len());

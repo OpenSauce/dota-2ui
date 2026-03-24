@@ -46,6 +46,7 @@ pub fn render_keybind_bar(app: &App, area: Rect, buf: &mut Buffer) {
             ("Esc", "Back"),
         ],
         Screen::TournamentDetail => vec![
+            ("g", "Overview"),
             ("m", "Matches"),
             ("d", "Info"),
             ("s", "Fav"),
