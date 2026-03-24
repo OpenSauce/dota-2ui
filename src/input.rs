@@ -6,6 +6,7 @@ pub enum Screen {
     TournamentBrowser,
     TournamentDetail,
     Settings,
+    Broadcast,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -26,6 +27,7 @@ pub enum AppAction {
     ShowGroups,
     ShowMatches,
     ShowStandings,
+    ToggleBroadcast,
 }
 
 pub fn map_key(key: KeyEvent, screen: &Screen) -> Option<AppAction> {
@@ -49,6 +51,9 @@ pub fn map_key(key: KeyEvent, screen: &Screen) -> Option<AppAction> {
         KeyCode::Char('g') if *screen == Screen::TournamentDetail => Some(AppAction::ShowGroups),
         KeyCode::Char('m') if *screen == Screen::TournamentDetail => Some(AppAction::ShowMatches),
         KeyCode::Char('d') if *screen == Screen::TournamentDetail => Some(AppAction::ShowStandings),
+        KeyCode::Char('b') if *screen == Screen::Dashboard || *screen == Screen::Broadcast => {
+            Some(AppAction::ToggleBroadcast)
+        }
         _ => None,
     }
 }

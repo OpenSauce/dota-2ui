@@ -33,6 +33,7 @@ pub fn render_keybind_bar(screen: &Screen, area: Rect, buf: &mut Buffer) {
             ("Esc", "Back"),
             ("q", "Quit"),
         ],
+        Screen::Broadcast => vec![("b", "Dashboard"), ("q", "Quit")],
     };
 
     let spans: Vec<Span> = binds

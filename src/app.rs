@@ -18,6 +18,8 @@ pub struct App {
     pub search_query: String,
     pub search_active: bool,
     pub tick_count: u64,
+    pub broadcast_mode: bool,
+    pub ticker_offset: usize,
 }
 
 impl App {
@@ -37,6 +39,8 @@ impl App {
             search_query: String::new(),
             search_active: false,
             tick_count: 0,
+            broadcast_mode: false,
+            ticker_offset: 0,
         }
     }
 
@@ -95,6 +99,16 @@ impl App {
                 }
             }
             AppAction::ShowGroups | AppAction::ShowMatches | AppAction::ShowStandings => {}
+            AppAction::ToggleBroadcast => {
+                self.broadcast_mode = !self.broadcast_mode;
+                if self.broadcast_mode {
+                    self.screen = Screen::Broadcast;
+                    self.ticker_offset = 0;
+                } else {
+                    self.screen = Screen::Dashboard;
+                }
+                self.scroll_offset = 0;
+            }
         }
     }
 
@@ -153,5 +167,20 @@ mod tests {
     fn tick_count_starts_at_zero() {
         let app = test_app();
         assert_eq!(app.tick_count, 0);
+    }
+
+    #[test]
+    fn toggle_broadcast_mode() {
+        let mut app = test_app();
+        assert!(!app.broadcast_mode);
+        assert_eq!(app.screen, Screen::Dashboard);
+
+        app.handle_action(AppAction::ToggleBroadcast);
+        assert!(app.broadcast_mode);
+        assert_eq!(app.screen, Screen::Broadcast);
+
+        app.handle_action(AppAction::ToggleBroadcast);
+        assert!(!app.broadcast_mode);
+        assert_eq!(app.screen, Screen::Dashboard);
     }
 }
