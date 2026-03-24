@@ -11,14 +11,25 @@ pub struct Team {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-pub enum MatchStatus { Upcoming, Live, Completed }
+pub enum MatchStatus {
+    Upcoming,
+    Live,
+    Completed,
+}
 
 impl MatchStatus {
-    pub fn is_live(&self) -> bool { matches!(self, MatchStatus::Live) }
+    pub fn is_live(&self) -> bool {
+        matches!(self, MatchStatus::Live)
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-pub enum SeriesFormat { Bo1, Bo2, Bo3, Bo5 }
+pub enum SeriesFormat {
+    Bo1,
+    Bo2,
+    Bo3,
+    Bo5,
+}
 
 impl fmt::Display for SeriesFormat {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -45,13 +56,22 @@ pub struct Match {
     pub start_time: DateTime<Utc>,
     pub stream_url: Option<String>,
     pub game_time_secs: Option<u64>,
+    #[serde(default)]
+    pub stage: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-pub enum TournamentStatus { Upcoming, Live, Completed }
+pub enum TournamentStatus {
+    Upcoming,
+    Live,
+    Completed,
+}
 
 impl TournamentStatus {
-    pub fn is_live(&self) -> bool { matches!(self, TournamentStatus::Live) }
+    #[allow(dead_code)]
+    pub fn is_live(&self) -> bool {
+        matches!(self, TournamentStatus::Live)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,6 +86,60 @@ pub struct Tournament {
     pub prize_pool: Option<String>,
 }
 
+impl Match {
+    /// Human-readable relative time string for this match.
+    pub fn relative_time(&self) -> String {
+        match self.status {
+            MatchStatus::Live => "LIVE".to_string(),
+            MatchStatus::Completed => "Final".to_string(),
+            MatchStatus::Upcoming => {
+                let diff = self.start_time - Utc::now();
+                let secs = diff.num_seconds();
+                if secs < 0 {
+                    "starting soon".to_string()
+                } else if secs < 60 {
+                    "now".to_string()
+                } else if secs < 3600 {
+                    format!("in {}m", secs / 60)
+                } else if secs < 86400 {
+                    format!("in {}h {}m", secs / 3600, (secs % 3600) / 60)
+                } else if secs < 604800 {
+                    format!("in {}d {}h", secs / 86400, (secs % 86400) / 3600)
+                } else {
+                    format!("in {}d", secs / 86400)
+                }
+            }
+        }
+    }
+
+    /// Color representing urgency of this match's timing.
+    pub fn urgency_color(&self) -> Color {
+        match self.status {
+            MatchStatus::Live => Color::Red,
+            MatchStatus::Completed => Color::DarkGray,
+            MatchStatus::Upcoming => {
+                let secs = (self.start_time - Utc::now()).num_seconds();
+                if secs < 900 {
+                    Color::Red
+                } else if secs < 7200 {
+                    Color::Yellow
+                } else {
+                    Color::DarkGray
+                }
+            }
+        }
+    }
+
+    /// Check if this match involves a team (case-insensitive, checks name and tag).
+    pub fn involves_team(&self, name: &str) -> bool {
+        let lower = name.to_lowercase();
+        self.team_a.name.to_lowercase() == lower
+            || self.team_a.tag.to_lowercase() == lower
+            || self.team_b.name.to_lowercase() == lower
+            || self.team_b.tag.to_lowercase() == lower
+    }
+}
+
 impl Tournament {
     pub fn tier_color(&self) -> Color {
         match self.tier.as_str() {
@@ -77,17 +151,25 @@ impl Tournament {
     }
 
     pub fn countdown_ratio(&self) -> f64 {
-        if self.status != TournamentStatus::Upcoming { return 1.0; }
+        if self.status != TournamentStatus::Upcoming {
+            return 1.0;
+        }
         let secs_until = (self.start_date - Utc::now()).num_seconds();
-        if secs_until <= 0 { return 1.0; }
+        if secs_until <= 0 {
+            return 1.0;
+        }
         let ratio = (86400.0 - secs_until as f64) / 86400.0;
         ratio.clamp(0.0, 1.0)
     }
 
     pub fn countdown(&self) -> Option<(i64, i64, i64, i64)> {
-        if self.status != TournamentStatus::Upcoming { return None; }
+        if self.status != TournamentStatus::Upcoming {
+            return None;
+        }
         let diff = self.start_date - Utc::now();
-        if diff.num_seconds() <= 0 { return None; }
+        if diff.num_seconds() <= 0 {
+            return None;
+        }
         let total_secs = diff.num_seconds();
         let days = total_secs / 86400;
         let hours = (total_secs % 86400) / 3600;

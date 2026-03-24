@@ -9,6 +9,41 @@ pub enum Screen {
     Broadcast,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum MatchFilter {
+    All,
+    LiveOnly,
+    UpcomingOnly,
+    FavoritesOnly,
+}
+
+impl MatchFilter {
+    pub fn next(self) -> Self {
+        match self {
+            Self::All => Self::LiveOnly,
+            Self::LiveOnly => Self::UpcomingOnly,
+            Self::UpcomingOnly => Self::FavoritesOnly,
+            Self::FavoritesOnly => Self::All,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::All => "All",
+            Self::LiveOnly => "Live Only",
+            Self::UpcomingOnly => "Upcoming Only",
+            Self::FavoritesOnly => "Favorites Only",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TournamentTab {
+    Overview,
+    Matches,
+    Info,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum AppAction {
     Quit,
@@ -28,12 +63,29 @@ pub enum AppAction {
     ShowMatches,
     ShowStandings,
     ToggleBroadcast,
+    SearchInput(char),
+    SearchBackspace,
+    SearchConfirm,
+    SearchCancel,
 }
 
-pub fn map_key(key: KeyEvent, screen: &Screen) -> Option<AppAction> {
+pub fn map_key(key: KeyEvent, screen: &Screen, search_active: bool) -> Option<AppAction> {
+    // Ctrl+C always quits
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
         return Some(AppAction::Quit);
     }
+
+    // When search is active, route keys to search actions
+    if search_active {
+        return match key.code {
+            KeyCode::Esc => Some(AppAction::SearchCancel),
+            KeyCode::Enter => Some(AppAction::SearchConfirm),
+            KeyCode::Backspace => Some(AppAction::SearchBackspace),
+            KeyCode::Char(c) => Some(AppAction::SearchInput(c)),
+            _ => None,
+        };
+    }
+
     match key.code {
         KeyCode::Char('q') => Some(AppAction::Quit),
         KeyCode::Esc | KeyCode::Backspace => Some(AppAction::Back),
