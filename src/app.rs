@@ -29,7 +29,7 @@ pub struct App {
     pub config: Config,
     pub matches: Vec<Match>,
     pub tournaments: Vec<Tournament>,
-    pub selected_tournament: Option<usize>,
+    pub selected_tournament_id: Option<String>,
     pub scroll_offset: usize,
     pub active_panel: usize,
     pub should_quit: bool,
@@ -55,7 +55,7 @@ impl App {
             config,
             matches: Vec::new(),
             tournaments: Vec::new(),
-            selected_tournament: None,
+            selected_tournament_id: None,
             scroll_offset: 0,
             active_panel: 0,
             should_quit: false,
@@ -155,10 +155,12 @@ impl App {
             }
             AppAction::Select => {
                 if self.screen == Screen::TournamentBrowser {
-                    self.selected_tournament = Some(self.scroll_offset);
-                    self.screen = Screen::TournamentDetail;
-                    self.scroll_offset = 0;
-                    self.tournament_detail_tab = TournamentTab::Overview;
+                    if let Some(t) = self.upcoming_tournaments().get(self.scroll_offset) {
+                        self.selected_tournament_id = Some(t.id.clone());
+                        self.screen = Screen::TournamentDetail;
+                        self.scroll_offset = 0;
+                        self.tournament_detail_tab = TournamentTab::Overview;
+                    }
                 }
             }
             AppAction::ToggleFavorite => {
@@ -298,8 +300,9 @@ impl App {
             }
             Screen::TournamentDetail => {
                 if let Some(t) = self
-                    .selected_tournament
-                    .and_then(|idx| self.upcoming_tournaments().get(idx).copied())
+                    .selected_tournament_id
+                    .as_ref()
+                    .and_then(|id| self.tournaments.iter().find(|t| &t.id == id))
                 {
                     let name = t.name.clone();
                     let was_fav = self.config.favorite_tournaments.iter().any(|f| f == &name);
@@ -607,6 +610,19 @@ mod tests {
         assert_eq!(second.len(), 0); // deduped
     }
 
+    fn test_tournament() -> Tournament {
+        Tournament {
+            id: "esl-one-2026".into(),
+            name: "ESL One 2026".into(),
+            start_date: chrono::Utc::now() + chrono::Duration::days(1),
+            end_date: chrono::Utc::now() + chrono::Duration::days(5),
+            status: TournamentStatus::Upcoming,
+            tier: "1".into(),
+            location: None,
+            prize_pool: None,
+        }
+    }
+
     fn test_match(status: MatchStatus) -> Match {
         Match {
             id: "m1".into(),
@@ -793,5 +809,54 @@ mod tests {
             stage: None,
         });
         assert_eq!(app.pending_notifications().len(), 0);
+    }
+
+    #[test]
+    fn select_tournament_stores_id() {
+        let mut app = test_app();
+        app.tournaments.push(test_tournament());
+        app.screen = Screen::TournamentBrowser;
+        app.scroll_offset = 0;
+        app.handle_action(AppAction::Select);
+        assert_eq!(app.screen, Screen::TournamentDetail);
+        assert_eq!(
+            app.selected_tournament_id,
+            Some("esl-one-2026".to_string())
+        );
+        assert_eq!(app.scroll_offset, 0);
+    }
+
+    #[test]
+    fn selected_tournament_survives_reorder() {
+        let mut app = test_app();
+        // Add two tournaments — the second one sorts first by start_date
+        app.tournaments.push(test_tournament()); // starts in 1 day
+        app.tournaments.push(Tournament {
+            id: "ti-2026".into(),
+            name: "TI 2026".into(),
+            start_date: chrono::Utc::now() + chrono::Duration::days(3),
+            end_date: chrono::Utc::now() + chrono::Duration::days(10),
+            status: TournamentStatus::Upcoming,
+            tier: "S".into(),
+            location: None,
+            prize_pool: None,
+        });
+        // Select the first item in the browser (esl-one-2026, earliest start_date)
+        app.screen = Screen::TournamentBrowser;
+        app.scroll_offset = 0;
+        app.handle_action(AppAction::Select);
+        assert_eq!(
+            app.selected_tournament_id,
+            Some("esl-one-2026".to_string())
+        );
+        // Simulate a data refresh that reverses the order in self.tournaments
+        app.tournaments.reverse();
+        // The ID-based lookup should still find the correct tournament
+        let found = app
+            .selected_tournament_id
+            .as_ref()
+            .and_then(|id| app.tournaments.iter().find(|t| &t.id == id));
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().name, "ESL One 2026");
     }
 }

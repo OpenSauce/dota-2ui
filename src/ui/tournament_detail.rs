@@ -9,8 +9,9 @@ use ratatui::widgets::{Block, Borders, Padding, Paragraph};
 pub fn render(frame: &mut Frame, app: &App) {
     let area = frame.area();
     let tournament = app
-        .selected_tournament
-        .and_then(|idx| app.upcoming_tournaments().get(idx).copied());
+        .selected_tournament_id
+        .as_ref()
+        .and_then(|id| app.tournaments.iter().find(|t| &t.id == id));
 
     let Some(tournament) = tournament else {
         frame.render_widget(
