@@ -154,17 +154,45 @@ impl App {
                 }
             }
             AppAction::ScrollUp => {
-                self.scroll_offset = self.scroll_offset.saturating_sub(1);
+                if self.screen == Screen::TournamentDetail
+                    && self.tournament_detail_tab == TournamentTab::Bracket
+                {
+                    self.bracket_match_offset = self.bracket_match_offset.saturating_sub(1);
+                } else {
+                    self.scroll_offset = self.scroll_offset.saturating_sub(1);
+                }
             }
             AppAction::ScrollDown => {
-                let max = self.current_panel_len().saturating_sub(1);
-                if self.scroll_offset < max {
-                    self.scroll_offset += 1;
+                if self.screen == Screen::TournamentDetail
+                    && self.tournament_detail_tab == TournamentTab::Bracket
+                {
+                    if let Some(max) = self.bracket_round_match_count() {
+                        if self.bracket_match_offset < max.saturating_sub(1) {
+                            self.bracket_match_offset += 1;
+                        }
+                    }
+                } else {
+                    let max = self.current_panel_len().saturating_sub(1);
+                    if self.scroll_offset < max {
+                        self.scroll_offset += 1;
+                    }
                 }
             }
             AppAction::NextPanel => {
-                self.active_panel = (self.active_panel + 1) % 4;
-                self.scroll_offset = 0;
+                if self.screen == Screen::TournamentDetail
+                    && self.tournament_detail_tab == TournamentTab::Bracket
+                {
+                    if let Some(max_rounds) = self.bracket_round_count() {
+                        if max_rounds > 0 {
+                            self.bracket_round_offset =
+                                (self.bracket_round_offset + 1) % max_rounds;
+                            self.bracket_match_offset = 0;
+                        }
+                    }
+                } else {
+                    self.active_panel = (self.active_panel + 1) % 4;
+                    self.scroll_offset = 0;
+                }
             }
             AppAction::Select => {
                 if self.screen == Screen::TournamentBrowser {
@@ -598,6 +626,21 @@ impl App {
             _ => None,
         }
     }
+
+    fn bracket_round_count(&self) -> Option<usize> {
+        self.selected_tournament_id
+            .as_ref()
+            .and_then(|id| self.bracket_cache.get(id))
+            .map(|b| b.upper_rounds.len())
+    }
+
+    fn bracket_round_match_count(&self) -> Option<usize> {
+        self.selected_tournament_id
+            .as_ref()
+            .and_then(|id| self.bracket_cache.get(id))
+            .and_then(|b| b.upper_rounds.get(self.bracket_round_offset))
+            .map(|r| r.matches.len())
+    }
 }
 
 #[cfg(test)]
@@ -911,6 +954,48 @@ mod tests {
             .and_then(|id| app.tournaments.iter().find(|t| &t.id == id));
         assert!(found.is_some());
         assert_eq!(found.unwrap().name, "ESL One 2026");
+    }
+
+    #[test]
+    fn bracket_scroll_horizontal() {
+        let mut app = test_app();
+        app.screen = Screen::TournamentDetail;
+        app.tournament_detail_tab = TournamentTab::Bracket;
+        app.selected_tournament_id = Some("t1".into());
+
+        app.bracket_cache.insert(
+            "t1".into(),
+            Bracket {
+                bracket_type: BracketType::SingleElim,
+                upper_rounds: vec![
+                    BracketRound {
+                        round: 1,
+                        name: "R1".into(),
+                        matches: vec![],
+                    },
+                    BracketRound {
+                        round: 2,
+                        name: "SF".into(),
+                        matches: vec![],
+                    },
+                    BracketRound {
+                        round: 3,
+                        name: "F".into(),
+                        matches: vec![],
+                    },
+                ],
+                lower_rounds: None,
+                grand_final: None,
+            },
+        );
+
+        assert_eq!(app.bracket_round_offset, 0);
+        app.handle_action(AppAction::NextPanel);
+        assert_eq!(app.bracket_round_offset, 1);
+        app.handle_action(AppAction::NextPanel);
+        assert_eq!(app.bracket_round_offset, 2);
+        app.handle_action(AppAction::NextPanel);
+        assert_eq!(app.bracket_round_offset, 0); // wraps
     }
 
     #[test]
