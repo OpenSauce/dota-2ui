@@ -301,8 +301,8 @@ fn render_bracket_tab(
                 );
             }
             crate::models::BracketViewMode::AsciiTree => {
-                // Task 8 will add the tree renderer; for now fall back to column
-                bracket_column::render_column_bracket(
+                use crate::ui::widgets::bracket_tree;
+                bracket_tree::render_tree_bracket(
                     bracket,
                     area,
                     frame.buffer_mut(),
