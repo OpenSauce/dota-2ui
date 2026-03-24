@@ -17,6 +17,7 @@ pub struct App {
     pub error_message: Option<String>,
     pub search_query: String,
     pub search_active: bool,
+    pub tick_count: u64,
 }
 
 impl App {
@@ -35,6 +36,7 @@ impl App {
             error_message: None,
             search_query: String::new(),
             search_active: false,
+            tick_count: 0,
         }
     }
 
@@ -136,5 +138,20 @@ impl App {
             1 => self.upcoming_matches().get(self.scroll_offset).copied(),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_app() -> App {
+        App::new(Config::default())
+    }
+
+    #[test]
+    fn tick_count_starts_at_zero() {
+        let app = test_app();
+        assert_eq!(app.tick_count, 0);
     }
 }

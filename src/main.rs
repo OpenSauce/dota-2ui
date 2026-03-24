@@ -61,6 +61,7 @@ async fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &m
 
     loop {
         terminal.draw(|frame| ui::render(frame, app))?;
+        app.tick_count = app.tick_count.wrapping_add(1);
 
         if app.needs_refresh() && !app.is_loading {
             app.is_loading = true;
@@ -99,7 +100,7 @@ async fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &m
             app.is_loading = false;
         }
 
-        if event::poll(Duration::from_secs(1))? {
+        if event::poll(Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
                     if let Some(action) = input::map_key(key, &app.screen) {
