@@ -1,8 +1,8 @@
 # dota-2ui configuration
 # Copy to ~/.config/dota-tui/config.toml
 
-# Refresh interval in seconds (default: 60)
-refresh_interval = 60
+# Refresh interval in seconds (default: 120, respects Liquipedia rate limits)
+refresh_interval = 120
 
 # PandaScore API key (optional — enables PandaScore as data source)
 # Get a free key at https://pandascore.co

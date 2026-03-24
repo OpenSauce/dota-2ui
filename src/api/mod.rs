@@ -28,9 +28,15 @@ impl std::fmt::Display for ApiError {
     }
 }
 
+/// Combined result from a single fetch operation.
+pub struct FetchAllResult {
+    pub matches: Vec<Match>,
+    pub tournaments: Vec<Tournament>,
+}
+
 pub trait MatchProvider: Send + Sync {
-    fn fetch_matches(&self) -> Pin<Box<dyn Future<Output = ApiResult<Vec<Match>>> + Send + '_>>;
-    fn fetch_tournaments(&self) -> Pin<Box<dyn Future<Output = ApiResult<Vec<Tournament>>> + Send + '_>>;
+    /// Fetch all data in as few API requests as possible.
+    fn fetch_all(&self) -> Pin<Box<dyn Future<Output = ApiResult<FetchAllResult>> + Send + '_>>;
 }
 
 pub fn provider_from_config(api_key: Option<&str>) -> Box<dyn MatchProvider> {

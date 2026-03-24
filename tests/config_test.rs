@@ -4,7 +4,7 @@ use tempfile::TempDir;
 #[test]
 fn test_default_config() {
     let c = Config::default();
-    assert_eq!(c.refresh_interval, 60);
+    assert_eq!(c.refresh_interval, 120);
     assert!(c.pandascore_api_key.is_none());
 }
 
@@ -26,7 +26,7 @@ fn test_config_roundtrip() {
 #[test]
 fn test_config_load_missing_returns_default() {
     let c = Config::load_from("/tmp/nonexistent-dota-2ui-test.toml").unwrap();
-    assert_eq!(c.refresh_interval, 60);
+    assert_eq!(c.refresh_interval, 120);
 }
 
 #[test]

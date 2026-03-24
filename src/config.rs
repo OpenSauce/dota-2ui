@@ -14,12 +14,12 @@ pub struct Config {
     pub favorite_tournaments: Vec<String>,
 }
 
-fn default_refresh_interval() -> u64 { 60 }
+fn default_refresh_interval() -> u64 { 120 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            refresh_interval: 60,
+            refresh_interval: 120,
             pandascore_api_key: None,
             favorite_teams: Vec::new(),
             favorite_tournaments: Vec::new(),

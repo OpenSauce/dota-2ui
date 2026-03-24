@@ -1,8 +1,10 @@
-use crate::api::{ApiError, ApiResult, MatchProvider};
+use super::{ApiError, ApiResult, FetchAllResult, MatchProvider};
 use crate::models::*;
-use chrono::{NaiveDate, NaiveDateTime, TimeZone, Utc};
+use chrono::{DateTime, TimeZone, Utc};
+use regex::Regex;
 use reqwest::Client;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 
@@ -14,13 +16,19 @@ pub struct LiquipediaProvider {
 }
 
 #[derive(Deserialize)]
-struct CargoResponse {
-    cargoquery: Vec<CargoRow>,
+struct ParseResponse {
+    parse: ParseData,
 }
 
 #[derive(Deserialize)]
-struct CargoRow {
-    title: serde_json::Value,
+struct ParseData {
+    text: ParseText,
+}
+
+#[derive(Deserialize)]
+struct ParseText {
+    #[serde(rename = "*")]
+    content: String,
 }
 
 impl LiquipediaProvider {
@@ -33,133 +41,179 @@ impl LiquipediaProvider {
         Self { client }
     }
 
-    pub fn parse_tournaments(json: &str) -> Result<Vec<Tournament>, ApiError> {
-        let resp: CargoResponse = serde_json::from_str(json).map_err(|e| ApiError::Parse(e.to_string()))?;
-        let mut tournaments = Vec::new();
-        for row in resp.cargoquery {
-            let t = &row.title;
-            let name = t["Name"].as_str().unwrap_or_default().to_string();
-            if name.is_empty() { continue; }
+    /// Parse matches from the Liquipedia:Matches page HTML (returned via MediaWiki parse API).
+    /// Each match is in a `<div class="match-info">` block containing:
+    /// - Team names in `<span class="name"><a>TeamName</a></span>`
+    /// - Scores in `<span class="match-info-header-scoreholder-score">N</span>`
+    /// - Format in `<span class="match-info-header-scoreholder-lower">(BoN)</span>`
+    /// - Timestamp in `<span class="timer-object" data-timestamp="UNIX">`
+    /// - Tournament in `<span class="match-info-tournament-name"><a title="...">Name</a></span>`
+    /// - Completed matches have `match-info-header-winner` / `match-info-header-loser` classes
+    pub fn parse_matches_html(html: &str) -> Result<Vec<Match>, ApiError> {
+        let re_name = Regex::new(r#"<span class="name"[^>]*><a[^>]*>([^<]+)</a></span>"#).unwrap();
+        let re_score = Regex::new(r#"match-info-header-scoreholder-score">(\d+)</span>"#).unwrap();
+        let re_format = Regex::new(r#"scoreholder-lower">\(([^)]+)\)</span>"#).unwrap();
+        let re_timestamp = Regex::new(r#"data-timestamp="(\d+)""#).unwrap();
+        let re_tournament = Regex::new(r#"match-info-tournament-name"><a[^>]*title="([^"]+)""#).unwrap();
 
-            let start_str = t["DateStart"].as_str().unwrap_or_default();
-            let end_str = t["Date"].as_str().unwrap_or_default();
-
-            let start_date = NaiveDate::parse_from_str(start_str, "%Y-%m-%d")
-                .map(|d| Utc.from_utc_datetime(&d.and_hms_opt(0, 0, 0).unwrap()))
-                .unwrap_or_else(|_| Utc::now());
-
-            let end_date = NaiveDate::parse_from_str(end_str, "%Y-%m-%d")
-                .map(|d| Utc.from_utc_datetime(&d.and_hms_opt(23, 59, 59).unwrap()))
-                .unwrap_or_else(|_| Utc::now());
-
-            let now = Utc::now();
-            let status = if now < start_date { TournamentStatus::Upcoming }
-                else if now > end_date { TournamentStatus::Completed }
-                else { TournamentStatus::Live };
-
-            let id = name.to_lowercase().replace(' ', "-");
-            tournaments.push(Tournament {
-                id, name, start_date, end_date, status,
-                tier: t["Tier"].as_str().unwrap_or("Unknown").to_string(),
-                location: t["Location"].as_str().map(|s| s.to_string()).filter(|s| !s.is_empty()),
-                prize_pool: t["Prizepool"].as_str().map(|s| s.to_string()).filter(|s| !s.is_empty()),
-            });
-        }
-        Ok(tournaments)
-    }
-
-    pub fn parse_matches(json: &str) -> Result<Vec<Match>, ApiError> {
-        let resp: CargoResponse = serde_json::from_str(json).map_err(|e| ApiError::Parse(e.to_string()))?;
+        let blocks: Vec<&str> = html.split("<div class=\"match-info\">").skip(1).collect();
+        let now = Utc::now();
         let mut matches = Vec::new();
-        for row in resp.cargoquery {
-            let t = &row.title;
-            let team1 = t["Team1"].as_str().unwrap_or_default().to_string();
-            let team2 = t["Team2"].as_str().unwrap_or_default().to_string();
-            if team1.is_empty() || team2.is_empty() { continue; }
 
-            let score_a: u8 = t["Team1Score"].as_str().unwrap_or("0").parse().unwrap_or(0);
-            let score_b: u8 = t["Team2Score"].as_str().unwrap_or("0").parse().unwrap_or(0);
+        for block in blocks {
+            // Only take up to the next match-info div
+            let block = block.split("<div class=\"match-info\">").next().unwrap_or(block);
 
-            let datetime_str = t["DateTime UTC"].as_str().unwrap_or_default();
-            let start_time = NaiveDateTime::parse_from_str(datetime_str, "%Y-%m-%d %H:%M:%S")
-                .map(|dt| Utc.from_utc_datetime(&dt))
-                .unwrap_or_else(|_| Utc::now());
+            let names: Vec<String> = re_name.captures_iter(block)
+                .map(|c| c[1].to_string())
+                .collect();
+            if names.len() < 2 {
+                continue;
+            }
 
-            let best_of: u8 = t["BestOf"].as_str().unwrap_or("1").parse().unwrap_or(1);
-            let series_format = match best_of {
-                2 => SeriesFormat::Bo2,
-                3 => SeriesFormat::Bo3,
-                5 => SeriesFormat::Bo5,
-                _ => SeriesFormat::Bo1,
-            };
+            let scores: Vec<u8> = re_score.captures_iter(block)
+                .map(|c| c[1].parse().unwrap_or(0))
+                .collect();
+            let score_a = scores.first().copied().unwrap_or(0);
+            let score_b = scores.get(1).copied().unwrap_or(0);
 
-            let now = Utc::now();
-            let wins_needed = match best_of {
-                2 => 2,
-                3 => 2,
-                5 => 3,
-                _ => 1,
-            };
-            let status = if start_time > now {
-                MatchStatus::Upcoming
-            } else if (score_a >= wins_needed || score_b >= wins_needed)
-                || (best_of == 2 && score_a + score_b >= 2) {
+            let series_format = re_format.captures(block)
+                .and_then(|c| {
+                    match c[1].to_string().as_str() {
+                        "Bo1" => Some(SeriesFormat::Bo1),
+                        "Bo2" => Some(SeriesFormat::Bo2),
+                        "Bo3" => Some(SeriesFormat::Bo3),
+                        "Bo5" => Some(SeriesFormat::Bo5),
+                        _ => None,
+                    }
+                })
+                .unwrap_or(SeriesFormat::Bo1);
+
+            let start_time = re_timestamp.captures(block)
+                .and_then(|c| c[1].parse::<i64>().ok())
+                .and_then(|ts| Utc.timestamp_opt(ts, 0).single())
+                .unwrap_or(now);
+
+            let tournament_raw = re_tournament.captures(block)
+                .map(|c| c[1].to_string())
+                .unwrap_or_default();
+            // Clean up tournament name: "ESL One/Birmingham/2026/Group Stage" -> "ESL One Birmingham 2026"
+            let tournament_name = clean_tournament_name(&tournament_raw);
+
+            let has_winner = block.contains("match-info-header-winner");
+            let has_scores = scores.len() >= 2 && (score_a > 0 || score_b > 0);
+
+            let status = if has_winner {
                 MatchStatus::Completed
-            } else {
+            } else if start_time > now {
+                MatchStatus::Upcoming
+            } else if has_scores {
                 MatchStatus::Live
+            } else if start_time <= now {
+                MatchStatus::Live
+            } else {
+                MatchStatus::Upcoming
             };
 
-            let tournament_name = t["Tournament"].as_str().unwrap_or_default().to_string();
-            let id = format!("{}-vs-{}-{}", team1, team2, datetime_str).to_lowercase().replace(' ', "-");
+            let id = format!("{}-vs-{}-{}", names[0], names[1], start_time.timestamp())
+                .to_lowercase().replace(' ', "-");
 
             matches.push(Match {
                 id,
-                team_a: Team { name: team1.clone(), tag: team1, region: None },
-                team_b: Team { name: team2.clone(), tag: team2, region: None },
-                score_a, score_b, status, series_format,
+                team_a: Team { name: names[0].clone(), tag: names[0].clone(), region: None },
+                team_b: Team { name: names[1].clone(), tag: names[1].clone(), region: None },
+                score_a,
+                score_b,
+                status,
+                series_format,
                 tournament_name: tournament_name.clone(),
-                tournament_id: tournament_name.to_lowercase().replace(' ', "-"),
-                start_time, stream_url: None, game_time_secs: None,
+                tournament_id: tournament_raw.to_lowercase().replace(' ', "-"),
+                start_time,
+                stream_url: None,
+                game_time_secs: None,
             });
         }
+
         Ok(matches)
     }
 
-    async fn fetch_cargo(&self, tables: &str, fields: &str, conditions: &str, limit: u32) -> ApiResult<String> {
-        let url = format!(
-            "{}?action=cargoquery&tables={}&fields={}&where={}&limit={}&format=json",
-            BASE_URL, tables, fields, conditions, limit
-        );
+    /// Derive tournaments from match data — group by tournament name and infer dates.
+    pub fn derive_tournaments(matches: &[Match]) -> Vec<Tournament> {
+        let mut tournament_map: HashMap<String, (DateTime<Utc>, DateTime<Utc>)> = HashMap::new();
+
+        for m in matches {
+            if m.tournament_name.is_empty() {
+                continue;
+            }
+            let entry = tournament_map.entry(m.tournament_name.clone())
+                .or_insert((m.start_time, m.start_time));
+            if m.start_time < entry.0 {
+                entry.0 = m.start_time;
+            }
+            if m.start_time > entry.1 {
+                entry.1 = m.start_time;
+            }
+        }
+
+        let now = Utc::now();
+        tournament_map.into_iter().map(|(name, (earliest, latest))| {
+            let status = if latest < now && !matches.iter().any(|m| m.tournament_name == name && m.status == MatchStatus::Live) {
+                TournamentStatus::Completed
+            } else if earliest > now {
+                TournamentStatus::Upcoming
+            } else {
+                TournamentStatus::Live
+            };
+
+            let id = name.to_lowercase().replace(' ', "-");
+            Tournament {
+                id,
+                name,
+                start_date: earliest,
+                end_date: latest,
+                status,
+                tier: String::new(),
+                location: None,
+                prize_pool: None,
+            }
+        }).collect()
+    }
+
+    async fn fetch_parse_page(&self, page: &str) -> ApiResult<String> {
+        let url = format!("{}?action=parse&page={}&format=json", BASE_URL, page);
         let resp = self.client.get(&url).send().await?;
-        if resp.status() == 429 { return Err(ApiError::RateLimit); }
-        Ok(resp.text().await?)
+        if resp.status() == 429 {
+            return Err(ApiError::RateLimit);
+        }
+        let text = resp.text().await?;
+        let parsed: ParseResponse = serde_json::from_str(&text)
+            .map_err(|e| ApiError::Parse(e.to_string()))?;
+        Ok(parsed.parse.text.content)
     }
 }
 
-impl MatchProvider for LiquipediaProvider {
-    fn fetch_matches(&self) -> Pin<Box<dyn Future<Output = ApiResult<Vec<Match>>> + Send + '_>> {
-        Box::pin(async move {
-            let now = Utc::now().format("%Y-%m-%d").to_string();
-            let conditions = format!("MatchSchedule.DateTime_UTC>'{}'", now);
-            let json = self.fetch_cargo(
-                "MatchSchedule",
-                "MatchSchedule.Team1,MatchSchedule.Team2,MatchSchedule.Team1Score,MatchSchedule.Team2Score,MatchSchedule.DateTime_UTC,MatchSchedule.BestOf,MatchSchedule.Tournament",
-                &conditions, 50,
-            ).await?;
-            Self::parse_matches(&json)
-        })
-    }
+/// Clean tournament name from Liquipedia wiki path format.
+/// "ESL One/Birmingham/2026/Group Stage" -> "ESL One Birmingham 2026"
+/// Drops stage suffixes like "Group Stage", "Playoffs", etc.
+fn clean_tournament_name(raw: &str) -> String {
+    let stage_suffixes = ["Group Stage", "Playoffs", "Main Event", "Qualifier", "Open Qualifier", "Closed Qualifier"];
+    let parts: Vec<&str> = raw.split('/').collect();
+    let cleaned: Vec<&str> = parts.iter()
+        .filter(|p| !stage_suffixes.iter().any(|s| p.contains(s)))
+        .copied()
+        .collect();
+    // Also strip anything after '#'
+    let name = cleaned.join(" ");
+    name.split('#').next().unwrap_or(&name).trim().to_string()
+}
 
-    fn fetch_tournaments(&self) -> Pin<Box<dyn Future<Output = ApiResult<Vec<Tournament>>> + Send + '_>> {
+impl MatchProvider for LiquipediaProvider {
+    fn fetch_all(&self) -> Pin<Box<dyn Future<Output = ApiResult<FetchAllResult>> + Send + '_>> {
         Box::pin(async move {
-            let past = (Utc::now() - chrono::Duration::days(7)).format("%Y-%m-%d").to_string();
-            let conditions = format!("Tournaments.DateStart>'{}'", past);
-            let json = self.fetch_cargo(
-                "Tournaments",
-                "Tournaments.Name,Tournaments.DateStart,Tournaments.Date,Tournaments.Tier,Tournaments.Location,Tournaments.Prizepool",
-                &conditions, 30,
-            ).await?;
-            Self::parse_tournaments(&json)
+            let html = self.fetch_parse_page("Liquipedia:Matches").await?;
+            let matches = Self::parse_matches_html(&html)?;
+            let tournaments = Self::derive_tournaments(&matches);
+            Ok(FetchAllResult { matches, tournaments })
         })
     }
 }

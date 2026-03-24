@@ -1,4 +1,4 @@
-use crate::api::{ApiError, ApiResult, MatchProvider};
+use super::{ApiError, ApiResult, FetchAllResult, MatchProvider};
 use crate::models::*;
 use chrono::{DateTime, Utc};
 use reqwest::Client;
@@ -140,23 +140,19 @@ impl PandaScoreProvider {
 }
 
 impl MatchProvider for PandaScoreProvider {
-    fn fetch_matches(&self) -> Pin<Box<dyn Future<Output = ApiResult<Vec<Match>>> + Send + '_>> {
+    fn fetch_all(&self) -> Pin<Box<dyn Future<Output = ApiResult<FetchAllResult>> + Send + '_>> {
         Box::pin(async move {
-            let running = self.get("/matches/running").await.unwrap_or_else(|_| "[]".to_string());
-            let upcoming = self.get("/matches/upcoming?per_page=20").await.unwrap_or_else(|_| "[]".to_string());
-            let mut matches = Self::parse_matches(&running)?;
-            matches.extend(Self::parse_matches(&upcoming)?);
-            Ok(matches)
-        })
-    }
+            let running_m = self.get("/matches/running").await.unwrap_or_else(|_| "[]".to_string());
+            let upcoming_m = self.get("/matches/upcoming?per_page=20").await.unwrap_or_else(|_| "[]".to_string());
+            let mut matches = Self::parse_matches(&running_m)?;
+            matches.extend(Self::parse_matches(&upcoming_m)?);
 
-    fn fetch_tournaments(&self) -> Pin<Box<dyn Future<Output = ApiResult<Vec<Tournament>>> + Send + '_>> {
-        Box::pin(async move {
-            let running = self.get("/tournaments/running").await.unwrap_or_else(|_| "[]".to_string());
-            let upcoming = self.get("/tournaments/upcoming?per_page=20").await.unwrap_or_else(|_| "[]".to_string());
-            let mut tournaments = Self::parse_tournaments(&running)?;
-            tournaments.extend(Self::parse_tournaments(&upcoming)?);
-            Ok(tournaments)
+            let running_t = self.get("/tournaments/running").await.unwrap_or_else(|_| "[]".to_string());
+            let upcoming_t = self.get("/tournaments/upcoming?per_page=20").await.unwrap_or_else(|_| "[]".to_string());
+            let mut tournaments = Self::parse_tournaments(&running_t)?;
+            tournaments.extend(Self::parse_tournaments(&upcoming_t)?);
+
+            Ok(FetchAllResult { matches, tournaments })
         })
     }
 }
