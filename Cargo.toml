@@ -21,3 +21,11 @@ open = "5"
 
 [dev-dependencies]
 tempfile = "3"
+
+[[test]]
+name = "liquipedia_test"
+path = "tests/api/liquipedia_test.rs"
+
+[[test]]
+name = "pandascore_test"
+path = "tests/api/pandascore_test.rs"
