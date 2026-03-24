@@ -1,6 +1,18 @@
-.PHONY: lint test fmt check all
+.PHONY: lint test fmt check all run run-notify install install-notify
 
 all: fmt lint test
+
+run:
+	cargo run
+
+run-notify:
+	cargo run --features notifications
+
+install:
+	cargo install --path .
+
+install-notify:
+	cargo install --path . --features notifications
 
 fmt:
 	cargo fmt --all
