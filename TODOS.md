@@ -72,6 +72,13 @@
 **Effort:** S (human: ~15 min / CC: ~5 min)
 **Depends on:** Nothing
 
+### Recently Ended Matches on Dashboard
+**What:** Show recently completed matches (last 1-2 hours) in a dedicated section or below the live panel on the dashboard. Currently completed matches only appear in the tournament detail Matches tab.
+**Why:** During a tournament, you want to see what just happened — "OG beat Nigma 2-0" — without navigating to the tournament detail screen.
+**Context:** Data already exists in `app.matches` with `MatchStatus::Completed`. Could add a "RECENT" panel or show completed matches in the live panel with "END" tag (which already renders). Filter to matches where `start_time` was within the last 2 hours.
+**Effort:** S (human: ~1 hour / CC: ~10 min)
+**Depends on:** Nothing
+
 ### Structured Logging
 **What:** Add optional file-based logging via `tracing` or `log` + `simplelog`
 **Why:** Zero logging currently. When Liquipedia HTML changes or API errors occur, only signal is the UI error bar. File logs help debug user-reported issues.

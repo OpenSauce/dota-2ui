@@ -160,15 +160,7 @@ fn render_live_panel(frame: &mut Frame, app: &App, area: Rect) {
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    let live: Vec<_> = match app.active_filter {
-        MatchFilter::UpcomingOnly => vec![],
-        MatchFilter::FavoritesOnly => app
-            .favorite_teams_matches()
-            .into_iter()
-            .filter(|m| m.status.is_live())
-            .collect(),
-        _ => app.live_matches(),
-    };
+    let live = app.visible_live();
 
     if live.is_empty() {
         let msg = match app.active_filter {
@@ -236,15 +228,7 @@ fn render_upcoming_panel(frame: &mut Frame, app: &App, area: Rect) {
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    let upcoming: Vec<_> = match app.active_filter {
-        MatchFilter::LiveOnly => vec![],
-        MatchFilter::FavoritesOnly => app
-            .favorite_teams_matches()
-            .into_iter()
-            .filter(|m| m.status == crate::models::MatchStatus::Upcoming)
-            .collect(),
-        _ => app.upcoming_matches(),
-    };
+    let upcoming = app.visible_upcoming();
 
     if upcoming.is_empty() {
         let msg = match app.active_filter {

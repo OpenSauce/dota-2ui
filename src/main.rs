@@ -124,24 +124,20 @@ async fn run_loop(
         // Check notifications once per second (every 10 ticks), not every tick
         if app.tick_count.is_multiple_of(10) {
             let notifications = app.pending_notifications();
-            for (message, event) in &notifications {
+            for (_message, event) in &notifications {
                 // Terminal bell for favorite team going live
+                // MatchLive is already deduped by match ID in pending_notifications,
+                // so the bell fires exactly once per match going live.
                 if event == &app::NotificationEvent::MatchLive {
-                    let bell_key = app::NotificationKey {
-                        match_or_tournament_id: message.clone(),
-                        event: app::NotificationEvent::BellFired,
-                    };
-                    if app.notified_events.insert(bell_key) {
-                        let _ = write!(terminal.backend_mut(), "\x07");
-                        let _ = io::Write::flush(terminal.backend_mut());
-                    }
+                    let _ = write!(terminal.backend_mut(), "\x07");
+                    let _ = io::Write::flush(terminal.backend_mut());
                 }
 
                 #[cfg(feature = "notifications")]
                 {
                     let _ = notify_rust::Notification::new()
                         .summary("Dota 2 TUI")
-                        .body(message)
+                        .body(_message)
                         .show();
                 }
             }

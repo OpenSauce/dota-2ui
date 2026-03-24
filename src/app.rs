@@ -9,7 +9,6 @@ pub enum NotificationEvent {
     MatchSoon,
     MatchLive,
     TournamentToday,
-    BellFired,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -327,11 +326,37 @@ impl App {
         }
     }
 
+    /// Returns the visible items for the live panel, respecting active_filter.
+    pub fn visible_live(&self) -> Vec<&Match> {
+        match self.active_filter {
+            MatchFilter::UpcomingOnly => vec![],
+            MatchFilter::FavoritesOnly => self
+                .favorite_teams_matches()
+                .into_iter()
+                .filter(|m| m.status.is_live())
+                .collect(),
+            _ => self.live_matches(),
+        }
+    }
+
+    /// Returns the visible items for the upcoming panel, respecting active_filter.
+    pub fn visible_upcoming(&self) -> Vec<&Match> {
+        match self.active_filter {
+            MatchFilter::LiveOnly => vec![],
+            MatchFilter::FavoritesOnly => self
+                .favorite_teams_matches()
+                .into_iter()
+                .filter(|m| m.status == MatchStatus::Upcoming)
+                .collect(),
+            _ => self.upcoming_matches(),
+        }
+    }
+
     pub fn current_panel_len(&self) -> usize {
         match self.screen {
             Screen::Dashboard => match self.active_panel {
-                0 => self.live_matches().len(),
-                1 => self.upcoming_matches().len(),
+                0 => self.visible_live().len(),
+                1 => self.visible_upcoming().len(),
                 2 => self.upcoming_tournaments().len(),
                 3 => self.favorite_teams_matches().len(),
                 _ => 0,
@@ -512,8 +537,8 @@ impl App {
 
     fn selected_match(&self) -> Option<&Match> {
         match self.active_panel {
-            0 => self.live_matches().get(self.scroll_offset).copied(),
-            1 => self.upcoming_matches().get(self.scroll_offset).copied(),
+            0 => self.visible_live().get(self.scroll_offset).copied(),
+            1 => self.visible_upcoming().get(self.scroll_offset).copied(),
             _ => None,
         }
     }
