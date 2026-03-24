@@ -62,6 +62,9 @@ async fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &m
     loop {
         terminal.draw(|frame| ui::render(frame, app))?;
         app.tick_count = app.tick_count.wrapping_add(1);
+        if app.broadcast_mode && app.tick_count % 10 == 0 {
+            app.ticker_offset = app.ticker_offset.wrapping_add(1);
+        }
 
         if app.needs_refresh() && !app.is_loading {
             app.is_loading = true;
