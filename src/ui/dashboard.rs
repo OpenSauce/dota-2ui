@@ -1,7 +1,7 @@
 use crate::app::App;
 use crate::ui::widgets::{countdown, keybind_bar, match_card};
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders, Padding, Paragraph};
+use ratatui::widgets::{Block, BorderType, Borders, Padding, Paragraph};
 
 pub fn render(frame: &mut Frame, app: &App) {
     let area = frame.area();
@@ -52,14 +52,24 @@ pub fn render(frame: &mut Frame, app: &App) {
     }
 }
 
+fn panel_border(is_active: bool) -> (BorderType, Style) {
+    if is_active {
+        (BorderType::Double, Style::default().fg(Color::White))
+    } else {
+        (BorderType::Plain, Style::default().fg(Color::DarkGray))
+    }
+}
+
 fn render_live_panel(frame: &mut Frame, app: &App, area: Rect) {
+    let (border_type, border_style) = panel_border(app.active_panel == 0);
     let block = Block::default()
         .title(Span::styled(
             " LIVE ",
             Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
         ))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::DarkGray))
+        .border_type(border_type)
+        .border_style(border_style)
         .padding(Padding::horizontal(1));
     let inner = block.inner(area);
     frame.render_widget(block, area);
@@ -95,13 +105,15 @@ fn render_live_panel(frame: &mut Frame, app: &App, area: Rect) {
 }
 
 fn render_upcoming_panel(frame: &mut Frame, app: &App, area: Rect) {
+    let (border_type, border_style) = panel_border(app.active_panel == 1);
     let block = Block::default()
         .title(Span::styled(
             " UPCOMING ",
             Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
         ))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::DarkGray))
+        .border_type(border_type)
+        .border_style(border_style)
         .padding(Padding::horizontal(1));
     let inner = block.inner(area);
     frame.render_widget(block, area);
@@ -139,13 +151,15 @@ fn render_right_panel(frame: &mut Frame, app: &App, area: Rect) {
         Layout::vertical([Constraint::Percentage(100)]).split(area)
     };
 
+    let (t_border_type, t_border_style) = panel_border(app.active_panel == 2);
     let t_block = Block::default()
         .title(Span::styled(
             " TOURNAMENTS ",
             Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD),
         ))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::DarkGray))
+        .border_type(t_border_type)
+        .border_style(t_border_style)
         .padding(Padding::horizontal(1));
     let t_inner = t_block.inner(split[0]);
     frame.render_widget(t_block, split[0]);
@@ -161,13 +175,15 @@ fn render_right_panel(frame: &mut Frame, app: &App, area: Rect) {
     }
 
     if has_favorites && split.len() > 1 {
+        let (f_border_type, f_border_style) = panel_border(app.active_panel == 3);
         let f_block = Block::default()
             .title(Span::styled(
                 " FAVORITES ",
                 Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
             ))
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::DarkGray))
+            .border_type(f_border_type)
+            .border_style(f_border_style)
             .padding(Padding::horizontal(1));
         let f_inner = f_block.inner(split[1]);
         frame.render_widget(f_block, split[1]);
