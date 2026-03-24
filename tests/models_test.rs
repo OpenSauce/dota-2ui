@@ -227,3 +227,63 @@ fn test_involves_team() {
     assert!(m.involves_team("OG")); // team_b
     assert!(!m.involves_team("Secret")); // not involved
 }
+
+#[test]
+fn bracket_type_default_is_unknown() {
+    let bracket = Bracket {
+        bracket_type: BracketType::Unknown,
+        upper_rounds: vec![],
+        lower_rounds: None,
+        grand_final: None,
+    };
+    assert_eq!(bracket.bracket_type, BracketType::Unknown);
+    assert!(bracket.upper_rounds.is_empty());
+    assert!(bracket.lower_rounds.is_none());
+}
+
+#[test]
+fn bracket_match_tbd_teams() {
+    let bm = BracketMatch {
+        match_id: "m1".into(),
+        round: 1,
+        position: 0,
+        team_a: Some("OG".into()),
+        team_b: None,
+        score_a: 0,
+        score_b: 0,
+        status: MatchStatus::Upcoming,
+        winner_to: Some((2, 0)),
+        loser_to: None,
+    };
+    assert!(bm.team_b.is_none());
+    assert_eq!(bm.winner_to, Some((2, 0)));
+}
+
+#[test]
+fn bracket_serialization_roundtrip() {
+    let bracket = Bracket {
+        bracket_type: BracketType::SingleElim,
+        upper_rounds: vec![BracketRound {
+            round: 1,
+            name: "Quarterfinals".into(),
+            matches: vec![BracketMatch {
+                match_id: "m1".into(),
+                round: 1,
+                position: 0,
+                team_a: Some("OG".into()),
+                team_b: Some("Nigma".into()),
+                score_a: 2,
+                score_b: 0,
+                status: MatchStatus::Completed,
+                winner_to: Some((2, 0)),
+                loser_to: None,
+            }],
+        }],
+        lower_rounds: None,
+        grand_final: None,
+    };
+    let json = serde_json::to_string(&bracket).unwrap();
+    let restored: Bracket = serde_json::from_str(&json).unwrap();
+    assert_eq!(restored.bracket_type, BracketType::SingleElim);
+    assert_eq!(restored.upper_rounds[0].matches[0].team_a, Some("OG".into()));
+}

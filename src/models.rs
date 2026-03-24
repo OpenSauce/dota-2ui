@@ -140,6 +140,49 @@ impl Match {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum BracketType {
+    SingleElim,
+    DoubleElim,
+    GroupStage,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum BracketViewMode {
+    Column,
+    AsciiTree,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BracketMatch {
+    pub match_id: String,
+    pub round: usize,
+    pub position: usize,
+    pub team_a: Option<String>,
+    pub team_b: Option<String>,
+    pub score_a: u8,
+    pub score_b: u8,
+    pub status: MatchStatus,
+    pub winner_to: Option<(usize, usize)>,
+    pub loser_to: Option<(usize, usize)>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BracketRound {
+    pub round: usize,
+    pub name: String,
+    pub matches: Vec<BracketMatch>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Bracket {
+    pub bracket_type: BracketType,
+    pub upper_rounds: Vec<BracketRound>,
+    pub lower_rounds: Option<Vec<BracketRound>>,
+    pub grand_final: Option<BracketMatch>,
+}
+
 impl Tournament {
     pub fn tier_color(&self) -> Color {
         match self.tier.as_str() {
