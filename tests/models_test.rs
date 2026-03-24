@@ -285,5 +285,8 @@ fn bracket_serialization_roundtrip() {
     let json = serde_json::to_string(&bracket).unwrap();
     let restored: Bracket = serde_json::from_str(&json).unwrap();
     assert_eq!(restored.bracket_type, BracketType::SingleElim);
-    assert_eq!(restored.upper_rounds[0].matches[0].team_a, Some("OG".into()));
+    assert_eq!(
+        restored.upper_rounds[0].matches[0].team_a,
+        Some("OG".into())
+    );
 }

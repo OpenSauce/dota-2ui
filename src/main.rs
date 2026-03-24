@@ -107,8 +107,9 @@ async fn run_loop(
 ) -> io::Result<()> {
     let (tx, mut rx) = tokio::sync::mpsc::channel::<Result<FetchResult, String>>(2);
     let bracket_disk_cache = DiskCache::new(DiskCache::default_path().join("brackets"));
-    let (bracket_tx, mut bracket_rx) =
-        tokio::sync::mpsc::channel::<Result<(String, Option<models::Bracket>), (String, String)>>(2);
+    let (bracket_tx, mut bracket_rx) = tokio::sync::mpsc::channel::<
+        Result<(String, Option<models::Bracket>), (String, String)>,
+    >(2);
 
     loop {
         terminal.draw(|frame| ui::render(frame, app))?;
@@ -215,7 +216,9 @@ async fn run_loop(
             if let Some(ref tid) = app.selected_tournament_id {
                 if !app.bracket_cache.contains_key(tid) && !app.bracket_attempted.contains(tid) {
                     let bracket_ttl = Duration::from_secs(600);
-                    if let Ok(Some(data)) = bracket_disk_cache.read(&format!("bracket-{}", tid), bracket_ttl) {
+                    if let Ok(Some(data)) =
+                        bracket_disk_cache.read(&format!("bracket-{}", tid), bracket_ttl)
+                    {
                         if let Ok(bracket) = serde_json::from_str::<models::Bracket>(&data) {
                             app.bracket_cache.insert(tid.clone(), bracket);
                         }
@@ -225,7 +228,9 @@ async fn run_loop(
                         let tid_clone = tid.clone();
                         let api_key = app.config.pandascore_api_key.clone();
                         let bracket_tx = bracket_tx.clone();
-                        let tournament_matches: Vec<models::Match> = app.matches.iter()
+                        let tournament_matches: Vec<models::Match> = app
+                            .matches
+                            .iter()
                             .filter(|m| m.tournament_id == tid_clone)
                             .cloned()
                             .collect();
@@ -237,7 +242,9 @@ async fn run_loop(
                                 .await
                                 .map(|bracket| {
                                     let bracket = bracket.or_else(|| {
-                                        api::liquipedia::LiquipediaProvider::build_stage_bracket(&tournament_matches)
+                                        api::liquipedia::LiquipediaProvider::build_stage_bracket(
+                                            &tournament_matches,
+                                        )
                                     });
                                     (tid_clone, bracket)
                                 })

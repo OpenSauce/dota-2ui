@@ -99,8 +99,8 @@ pub fn render_tree_bracket(
         &mut canvas,
         rounds,
         last_round_idx,
-        0,      // match index within round
-        0,      // top of vertical span
+        0, // match index within round
+        0, // top of vertical span
         canvas_height,
         favorite_teams,
     );
@@ -115,7 +115,7 @@ pub fn render_tree_bracket(
         let prev_mid = mid;
         let gf_x = gf_col * CELL_WIDTH;
         let _prev_end_x = gf_col * CELL_WIDTH; // start of gf column = end of connector region
-        // Draw horizontal connector from end of last round to the grand final.
+                                               // Draw horizontal connector from end of last round to the grand final.
         let conn_start = last_round_idx * CELL_WIDTH + MATCH_WIDTH;
         draw_horizontal_connector(&mut canvas, conn_start, prev_mid, gf_x);
     }

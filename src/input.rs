@@ -108,8 +108,12 @@ pub fn map_key(key: KeyEvent, screen: &Screen, search_active: bool) -> Option<Ap
         KeyCode::Char('m') if *screen == Screen::TournamentDetail => Some(AppAction::ShowMatches),
         KeyCode::Char('d') if *screen == Screen::TournamentDetail => Some(AppAction::ShowStandings),
         KeyCode::Char('b') if *screen == Screen::TournamentDetail => Some(AppAction::ShowBracket),
-        KeyCode::Char('v') if *screen == Screen::TournamentDetail => Some(AppAction::ToggleBracketView),
-        KeyCode::Char('a') if *screen == Screen::TournamentBrowser => Some(AppAction::ToggleAllTournaments),
+        KeyCode::Char('v') if *screen == Screen::TournamentDetail => {
+            Some(AppAction::ToggleBracketView)
+        }
+        KeyCode::Char('a') if *screen == Screen::TournamentBrowser => {
+            Some(AppAction::ToggleAllTournaments)
+        }
         KeyCode::Char('1') if *screen == Screen::TournamentDetail => Some(AppAction::ShowGroups),
         KeyCode::Char('2') if *screen == Screen::TournamentDetail => Some(AppAction::ShowMatches),
         KeyCode::Char('3') if *screen == Screen::TournamentDetail => Some(AppAction::ShowBracket),

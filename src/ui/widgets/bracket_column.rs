@@ -16,7 +16,10 @@ pub fn render_column_bracket(
     }
 
     if bracket.upper_rounds.is_empty() {
-        let msg = Span::styled("No bracket rounds available.", Style::default().fg(Color::DarkGray));
+        let msg = Span::styled(
+            "No bracket rounds available.",
+            Style::default().fg(Color::DarkGray),
+        );
         buf.set_line(area.x, area.y, &Line::from(msg), area.width);
         return;
     }
@@ -72,7 +75,15 @@ pub fn render_column_bracket(
                     if col_x + COLUMN_WIDTH <= area.x + area.width {
                         render_round_header("Grand Final", col_x, area.y, COLUMN_WIDTH, buf, true);
                         render_separator(col_x, area.y + 1, COLUMN_WIDTH, buf);
-                        render_match_cell(gf, col_x, area.y + 2, COLUMN_WIDTH, buf, favorite_teams, false);
+                        render_match_cell(
+                            gf,
+                            col_x,
+                            area.y + 2,
+                            COLUMN_WIDTH,
+                            buf,
+                            favorite_teams,
+                            false,
+                        );
                     }
                 }
             }
@@ -100,7 +111,15 @@ pub fn render_column_bracket(
             if col_x + COLUMN_WIDTH <= area.x + area.width {
                 render_round_header("Grand Final", col_x, area.y, COLUMN_WIDTH, buf, true);
                 render_separator(col_x, area.y + 1, COLUMN_WIDTH, buf);
-                render_match_cell(gf, col_x, area.y + 2, COLUMN_WIDTH, buf, favorite_teams, false);
+                render_match_cell(
+                    gf,
+                    col_x,
+                    area.y + 2,
+                    COLUMN_WIDTH,
+                    buf,
+                    favorite_teams,
+                    false,
+                );
             }
         }
     }
@@ -160,14 +179,24 @@ fn render_rounds(
             }
             let y = match_area_y + y_offset;
             let selected = col_idx == 0 && m_idx == 0 && match_offset > 0;
-            render_match_cell(bracket_match, col_x, y, col_width, buf, favorite_teams, selected);
+            render_match_cell(
+                bracket_match,
+                col_x,
+                y,
+                col_width,
+                buf,
+                favorite_teams,
+                selected,
+            );
         }
     }
 }
 
 fn render_round_header(name: &str, x: u16, y: u16, width: u16, buf: &mut Buffer, active: bool) {
     let style = if active {
-        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::DarkGray)
     };
@@ -195,7 +224,9 @@ fn render_divider(label: &str, y: u16, x: u16, width: u16, buf: &mut Buffer) {
     );
     let span = Span::styled(
         truncate_str(&full, width as usize),
-        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD),
     );
     buf.set_line(x, y, &Line::from(span), width);
 }
@@ -209,7 +240,11 @@ fn render_match_cell(
     favorite_teams: &[String],
     selected: bool,
 ) {
-    let bg = if selected { Color::DarkGray } else { Color::Reset };
+    let bg = if selected {
+        Color::DarkGray
+    } else {
+        Color::Reset
+    };
 
     // Team A line
     let team_a_line = format_team_line(

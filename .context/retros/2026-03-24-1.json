@@ -1,0 +1,43 @@
+{
+  "date": "2026-03-24",
+  "window": "7d",
+  "metrics": {
+    "commits": 19,
+    "contributors": 1,
+    "prs_merged": 2,
+    "insertions": 9696,
+    "deletions": 3892,
+    "net_loc": 5804,
+    "test_loc": 550,
+    "test_ratio": 0.06,
+    "active_days": 1,
+    "sessions": 3,
+    "deep_sessions": 1,
+    "avg_session_minutes": 19,
+    "loc_per_session_hour": 1300,
+    "feat_pct": 0.53,
+    "fix_pct": 0.21,
+    "peak_hour": 18,
+    "ai_assisted_commits": 19
+  },
+  "authors": {
+    "OpenSauce": { "commits": 16, "insertions": 7468, "deletions": 3561, "test_ratio": 0.05, "top_area": "src/" },
+    "Leigh": { "commits": 3, "insertions": 3560, "deletions": 434, "test_ratio": 0.06, "top_area": "src/" }
+  },
+  "version_range": ["0.1.0", "0.3.0"],
+  "streak_days": 1,
+  "tweetable": "Week of Mar 17: 19 commits, 9.7k LOC, 2 PRs, v0.1.0->v0.3.0 | Built entire Rust TUI Dota 2 dashboard from scratch in 1 day | Streak: 1d",
+  "test_health": {
+    "total_test_files": 5,
+    "tests_added_this_period": 6,
+    "regression_test_commits": 0,
+    "test_files_changed": 6
+  },
+  "backlog": {
+    "total_open": 9,
+    "p0_p1": 3,
+    "p2": 2,
+    "completed_this_period": 3,
+    "added_this_period": 3
+  }
+}

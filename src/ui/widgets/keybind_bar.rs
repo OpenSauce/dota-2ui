@@ -98,7 +98,10 @@ pub fn render_keybind_bar(app: &App, area: Rect, buf: &mut Buffer) {
         if let Some(ref tid) = app.selected_tournament_id {
             if let Some(bracket) = app.bracket_cache.get(tid) {
                 if bracket.bracket_type == crate::models::BracketType::SingleElim {
-                    spans.push(Span::styled("v:view ", Style::default().fg(Color::DarkGray)));
+                    spans.push(Span::styled(
+                        "v:view ",
+                        Style::default().fg(Color::DarkGray),
+                    ));
                 }
             }
         }

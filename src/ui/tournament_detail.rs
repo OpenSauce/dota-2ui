@@ -329,10 +329,7 @@ fn render_bracket_tab(
         };
         let split = Layout::vertical([Constraint::Length(2), Constraint::Min(3)]).split(area);
         frame.render_widget(
-            Paragraph::new(Span::styled(
-                msg,
-                Style::default().fg(Color::DarkGray),
-            )),
+            Paragraph::new(Span::styled(msg, Style::default().fg(Color::DarkGray))),
             split[0],
         );
         render_matches_tab(frame, app, tournament, split[1], true);

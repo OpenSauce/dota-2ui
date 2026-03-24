@@ -350,7 +350,11 @@ impl App {
                 }
             }
             Screen::TournamentBrowser => {
-                if let Some(t) = self.browsable_tournaments().get(self.scroll_offset).copied() {
+                if let Some(t) = self
+                    .browsable_tournaments()
+                    .get(self.scroll_offset)
+                    .copied()
+                {
                     let name = t.name.clone();
                     let was_fav = self.config.favorite_tournaments.iter().any(|f| f == &name);
                     self.config.toggle_favorite_tournament(&name);
@@ -918,10 +922,7 @@ mod tests {
         app.scroll_offset = 0;
         app.handle_action(AppAction::Select);
         assert_eq!(app.screen, Screen::TournamentDetail);
-        assert_eq!(
-            app.selected_tournament_id,
-            Some("esl-one-2026".to_string())
-        );
+        assert_eq!(app.selected_tournament_id, Some("esl-one-2026".to_string()));
         assert_eq!(app.scroll_offset, 0);
     }
 
@@ -944,10 +945,7 @@ mod tests {
         app.screen = Screen::TournamentBrowser;
         app.scroll_offset = 0;
         app.handle_action(AppAction::Select);
-        assert_eq!(
-            app.selected_tournament_id,
-            Some("esl-one-2026".to_string())
-        );
+        assert_eq!(app.selected_tournament_id, Some("esl-one-2026".to_string()));
         // Simulate a data refresh that reverses the order in self.tournaments
         app.tournaments.reverse();
         // The ID-based lookup should still find the correct tournament

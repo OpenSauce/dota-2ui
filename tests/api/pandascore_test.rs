@@ -93,7 +93,10 @@ fn reconstruct_bracket_from_matches() {
     ]"#;
 
     let bracket = dota_2ui::api::pandascore::PandaScoreProvider::reconstruct_bracket(json).unwrap();
-    assert_eq!(bracket.bracket_type, dota_2ui::models::BracketType::SingleElim);
+    assert_eq!(
+        bracket.bracket_type,
+        dota_2ui::models::BracketType::SingleElim
+    );
     assert_eq!(bracket.upper_rounds.len(), 2);
     assert_eq!(bracket.upper_rounds[0].matches.len(), 2);
     assert_eq!(bracket.upper_rounds[1].matches.len(), 1);

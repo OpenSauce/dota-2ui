@@ -160,7 +160,8 @@ impl PandaScoreProvider {
                 status,
                 series_format,
                 tournament_name: league_name.clone(),
-                tournament_id: m.tournament_id
+                tournament_id: m
+                    .tournament_id
                     .map(|id| id.to_string())
                     .unwrap_or_else(|| league_name.to_lowercase().replace(' ', "-")),
                 start_time,
@@ -393,7 +394,11 @@ fn name_round(round: i32, max_round: i32) -> String {
     }
 }
 
-fn find_next_match(all_matches: &[PsMatch], source_id: u64, link_type: &str) -> Option<(usize, usize)> {
+fn find_next_match(
+    all_matches: &[PsMatch],
+    source_id: u64,
+    link_type: &str,
+) -> Option<(usize, usize)> {
     for m in all_matches {
         if let Some(prev) = &m.previous_matches {
             for pm in prev {
