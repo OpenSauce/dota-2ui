@@ -66,6 +66,17 @@ async fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &m
             app.ticker_offset = app.ticker_offset.wrapping_add(1);
         }
 
+        #[cfg(feature = "notifications")]
+        {
+            let notifications = app.pending_notifications();
+            for (message, _event) in notifications {
+                let _ = notify_rust::Notification::new()
+                    .summary("Dota 2 TUI")
+                    .body(&message)
+                    .show();
+            }
+        }
+
         if app.needs_refresh() && !app.is_loading {
             app.is_loading = true;
             app.mark_refreshed();

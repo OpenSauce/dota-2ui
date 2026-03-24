@@ -1,7 +1,21 @@
 use crate::config::Config;
 use crate::input::{AppAction, Screen};
 use crate::models::*;
+use std::collections::HashSet;
 use std::time::{Duration, Instant};
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum NotificationEvent {
+    MatchSoon,
+    MatchLive,
+    TournamentToday,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct NotificationKey {
+    pub match_or_tournament_id: String,
+    pub event: NotificationEvent,
+}
 
 pub struct App {
     pub screen: Screen,
@@ -20,6 +34,7 @@ pub struct App {
     pub tick_count: u64,
     pub broadcast_mode: bool,
     pub ticker_offset: usize,
+    pub notified_events: HashSet<NotificationKey>,
 }
 
 impl App {
@@ -41,6 +56,7 @@ impl App {
             tick_count: 0,
             broadcast_mode: false,
             ticker_offset: 0,
+            notified_events: HashSet::new(),
         }
     }
 
@@ -165,6 +181,68 @@ impl App {
         }).collect()
     }
 
+    pub fn pending_notifications(&mut self) -> Vec<(String, NotificationEvent)> {
+        if !self.config.enable_notifications { return Vec::new(); }
+
+        let now = chrono::Utc::now();
+        let today = now.date_naive();
+        let mut notifications = Vec::new();
+
+        for m in &self.matches {
+            let is_fav = self.config.favorite_teams.iter().any(|fav| {
+                m.team_a.name.eq_ignore_ascii_case(fav) || m.team_b.name.eq_ignore_ascii_case(fav)
+            });
+            if !is_fav { continue; }
+
+            // Match soon: fires when 14-15 min before start
+            let secs_until = (m.start_time - now).num_seconds();
+            if secs_until >= 840 && secs_until < 900 {
+                let key = NotificationKey {
+                    match_or_tournament_id: m.id.clone(),
+                    event: NotificationEvent::MatchSoon,
+                };
+                if self.notified_events.insert(key) {
+                    notifications.push((
+                        format!("{} vs {} starts in 15 minutes! ({})", m.team_a.name, m.team_b.name, m.tournament_name),
+                        NotificationEvent::MatchSoon,
+                    ));
+                }
+            }
+
+            // Match live
+            if m.status.is_live() {
+                let key = NotificationKey {
+                    match_or_tournament_id: m.id.clone(),
+                    event: NotificationEvent::MatchLive,
+                };
+                if self.notified_events.insert(key) {
+                    notifications.push((
+                        format!("{} vs {} is LIVE! ({})", m.team_a.name, m.team_b.name, m.tournament_name),
+                        NotificationEvent::MatchLive,
+                    ));
+                }
+            }
+        }
+
+        // Tournament today
+        for t in &self.tournaments {
+            if t.start_date.date_naive() == today {
+                let key = NotificationKey {
+                    match_or_tournament_id: t.id.clone(),
+                    event: NotificationEvent::TournamentToday,
+                };
+                if self.notified_events.insert(key) {
+                    notifications.push((
+                        format!("{} starts today!", t.name),
+                        NotificationEvent::TournamentToday,
+                    ));
+                }
+            }
+        }
+
+        notifications
+    }
+
     fn selected_match(&self) -> Option<&Match> {
         match self.active_panel {
             0 => self.live_matches().get(self.scroll_offset).copied(),
@@ -201,5 +279,50 @@ mod tests {
         app.handle_action(AppAction::ToggleBroadcast);
         assert!(!app.broadcast_mode);
         assert_eq!(app.screen, Screen::Dashboard);
+    }
+
+    #[test]
+    fn notification_dedup() {
+        let mut app = test_app();
+        app.config.enable_notifications = true;
+        app.config.favorite_teams = vec!["Team A".into()];
+        app.matches.push(Match {
+            id: "m1".into(),
+            team_a: Team { name: "Team A".into(), tag: "TA".into(), region: None },
+            team_b: Team { name: "Team B".into(), tag: "TB".into(), region: None },
+            score_a: 0, score_b: 0,
+            status: MatchStatus::Live,
+            series_format: SeriesFormat::Bo3,
+            tournament_name: "Test Cup".into(),
+            tournament_id: "t1".into(),
+            start_time: chrono::Utc::now(),
+            stream_url: None,
+            game_time_secs: None,
+        });
+        let first = app.pending_notifications();
+        assert_eq!(first.len(), 1);
+        let second = app.pending_notifications();
+        assert_eq!(second.len(), 0); // deduped
+    }
+
+    #[test]
+    fn no_notifications_when_disabled() {
+        let mut app = test_app();
+        app.config.enable_notifications = false;
+        app.config.favorite_teams = vec!["Team A".into()];
+        app.matches.push(Match {
+            id: "m1".into(),
+            team_a: Team { name: "Team A".into(), tag: "TA".into(), region: None },
+            team_b: Team { name: "Team B".into(), tag: "TB".into(), region: None },
+            score_a: 0, score_b: 0,
+            status: MatchStatus::Live,
+            series_format: SeriesFormat::Bo3,
+            tournament_name: "Test Cup".into(),
+            tournament_id: "t1".into(),
+            start_time: chrono::Utc::now(),
+            stream_url: None,
+            game_time_secs: None,
+        });
+        assert_eq!(app.pending_notifications().len(), 0);
     }
 }
