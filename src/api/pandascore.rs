@@ -22,6 +22,7 @@ struct PsMatch {
     opponents: Vec<PsOpponent>,
     results: Vec<PsResult>,
     league: Option<PsLeague>,
+    tournament_id: Option<u64>,
     streams_list: Option<Vec<PsStream>>,
 }
 
@@ -138,7 +139,9 @@ impl PandaScoreProvider {
                 status,
                 series_format,
                 tournament_name: league_name.clone(),
-                tournament_id: league_name.to_lowercase().replace(' ', "-"),
+                tournament_id: m.tournament_id
+                    .map(|id| id.to_string())
+                    .unwrap_or_else(|| league_name.to_lowercase().replace(' ', "-")),
                 start_time,
                 stream_url,
                 game_time_secs: None,

@@ -27,6 +27,27 @@ fn test_parse_pandascore_tournament() {
 }
 
 #[test]
+fn match_uses_real_tournament_id() {
+    let json = r#"[{
+        "id": 100,
+        "status": "running",
+        "number_of_games": 3,
+        "scheduled_at": "2026-03-24T12:00:00Z",
+        "opponents": [
+            {"opponent": {"name": "OG", "acronym": "OG", "location": "EU"}},
+            {"opponent": {"name": "Nigma", "acronym": "NGX", "location": "EU"}}
+        ],
+        "results": [{"score": 1}, {"score": 0}],
+        "league": {"name": "ESL One"},
+        "tournament_id": 9876,
+        "tournament": {"id": 9876, "name": "ESL One Birmingham 2026"},
+        "streams_list": []
+    }]"#;
+    let matches = dota_2ui::api::pandascore::PandaScoreProvider::parse_matches(json).unwrap();
+    assert_eq!(matches[0].tournament_id, "9876");
+}
+
+#[test]
 fn test_parse_pandascore_empty() {
     assert!(PandaScoreProvider::parse_matches("[]").unwrap().is_empty());
     assert!(PandaScoreProvider::parse_tournaments("[]")
