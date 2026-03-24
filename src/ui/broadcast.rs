@@ -123,15 +123,17 @@ pub fn render(frame: &mut Frame, app: &App) {
     let center_area = horizontal[0];
     let side_area = horizontal[1];
 
+    let featured_idx = featured_match(app);
+
     render_ticker(frame, app, ticker_area);
-    render_center_stage(frame, app, center_area);
-    render_side_rail(frame, app, side_area);
+    render_center_stage(frame, app, center_area, featured_idx);
+    render_side_rail(frame, app, side_area, featured_idx);
     render_bottom_countdown(frame, app, bottom_area);
 }
 
 fn render_ticker(frame: &mut Frame, app: &App, area: Rect) {
     let ticker = build_ticker(app);
-    let len = ticker.len().max(1);
+    let len = ticker.chars().count().max(1);
     let offset = app.ticker_offset % len;
     let visible: String = ticker
         .chars()
@@ -148,12 +150,12 @@ fn render_ticker(frame: &mut Frame, app: &App, area: Rect) {
     frame.render_widget(paragraph, area);
 }
 
-fn render_center_stage(frame: &mut Frame, app: &App, area: Rect) {
+fn render_center_stage(frame: &mut Frame, app: &App, area: Rect, featured: Option<usize>) {
     let block = Block::default().borders(Borders::RIGHT);
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    let featured_idx = match featured_match(app) {
+    let featured_idx = match featured {
         Some(i) => i,
         None => {
             let msg = Paragraph::new("No matches")
@@ -285,8 +287,7 @@ fn render_center_stage(frame: &mut Frame, app: &App, area: Rect) {
     frame.render_widget(paragraph, text_area);
 }
 
-fn render_side_rail(frame: &mut Frame, app: &App, area: Rect) {
-    let featured_idx = featured_match(app);
+fn render_side_rail(frame: &mut Frame, app: &App, area: Rect, featured_idx: Option<usize>) {
 
     // Collect live + upcoming, excluding the featured match
     let mut rail_matches: Vec<&Match> = Vec::new();

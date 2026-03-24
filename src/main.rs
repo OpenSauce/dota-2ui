@@ -107,6 +107,11 @@ async fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &m
                     app.matches = data.matches;
                     app.tournaments = data.tournaments;
                     app.error_message = None;
+                    // Prune stale notification keys for matches/tournaments no longer present
+                    app.notified_events.retain(|key| {
+                        app.matches.iter().any(|m| m.id == key.match_or_tournament_id)
+                            || app.tournaments.iter().any(|t| t.id == key.match_or_tournament_id)
+                    });
                 }
                 Err(e) => {
                     app.error_message = Some(e);
