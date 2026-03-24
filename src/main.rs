@@ -66,8 +66,9 @@ async fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &m
             app.ticker_offset = app.ticker_offset.wrapping_add(1);
         }
 
+        // Check notifications once per second (every 10 ticks), not every tick
         #[cfg(feature = "notifications")]
-        {
+        if app.tick_count % 10 == 0 {
             let notifications = app.pending_notifications();
             for (message, _event) in notifications {
                 let _ = notify_rust::Notification::new()
