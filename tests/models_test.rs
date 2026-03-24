@@ -3,6 +3,37 @@ use chrono::{Utc, Duration};
 use ratatui::style::Color;
 
 #[test]
+fn test_countdown_ratio() {
+    let far_away = Tournament {
+        id: "1".into(), name: "Test".into(),
+        start_date: Utc::now() + Duration::days(5),
+        end_date: Utc::now() + Duration::days(7),
+        status: TournamentStatus::Upcoming, tier: "1".into(),
+        location: None, prize_pool: None,
+    };
+    assert_eq!(far_away.countdown_ratio(), 0.0);
+
+    let soon = Tournament {
+        id: "1".into(), name: "Test".into(),
+        start_date: Utc::now() + Duration::hours(12),
+        end_date: Utc::now() + Duration::days(7),
+        status: TournamentStatus::Upcoming, tier: "1".into(),
+        location: None, prize_pool: None,
+    };
+    let ratio = soon.countdown_ratio();
+    assert!(ratio > 0.4 && ratio < 0.6, "12h away should be ~0.5, got {}", ratio);
+
+    let started = Tournament {
+        id: "1".into(), name: "Test".into(),
+        start_date: Utc::now() + Duration::days(5),
+        end_date: Utc::now() + Duration::days(7),
+        status: TournamentStatus::Live, tier: "1".into(),
+        location: None, prize_pool: None,
+    };
+    assert_eq!(started.countdown_ratio(), 1.0);
+}
+
+#[test]
 fn test_match_status_is_live() {
     assert!(MatchStatus::Live.is_live());
     assert!(!MatchStatus::Upcoming.is_live());

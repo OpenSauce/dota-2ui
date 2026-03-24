@@ -151,13 +151,11 @@ fn render_right_panel(frame: &mut Frame, app: &App, area: Rect) {
     frame.render_widget(t_block, split[0]);
 
     for (i, t) in app.upcoming_tournaments().iter().enumerate() {
-        let y = t_inner.y + i as u16;
-        if y >= t_inner.y + t_inner.height {
-            break;
-        }
-        countdown::render_countdown(
+        let y = t_inner.y + (i as u16) * 2;
+        if y + 1 >= t_inner.y + t_inner.height { break; }
+        countdown::render_countdown_with_gauge(
             t,
-            Rect { x: t_inner.x, y, width: t_inner.width, height: 1 },
+            Rect { x: t_inner.x, y, width: t_inner.width, height: 2 },
             frame.buffer_mut(),
         );
     }

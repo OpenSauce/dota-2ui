@@ -76,6 +76,14 @@ impl Tournament {
         }
     }
 
+    pub fn countdown_ratio(&self) -> f64 {
+        if self.status != TournamentStatus::Upcoming { return 1.0; }
+        let secs_until = (self.start_date - Utc::now()).num_seconds();
+        if secs_until <= 0 { return 1.0; }
+        let ratio = (86400.0 - secs_until as f64) / 86400.0;
+        ratio.clamp(0.0, 1.0)
+    }
+
     pub fn countdown(&self) -> Option<(i64, i64, i64, i64)> {
         if self.status != TournamentStatus::Upcoming { return None; }
         let diff = self.start_date - Utc::now();
