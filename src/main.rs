@@ -106,6 +106,9 @@ async fn run_loop(
     app: &mut App,
 ) -> io::Result<()> {
     let (tx, mut rx) = tokio::sync::mpsc::channel::<Result<FetchResult, String>>(2);
+    let bracket_disk_cache = DiskCache::new(DiskCache::default_path().join("brackets"));
+    let (bracket_tx, mut bracket_rx) =
+        tokio::sync::mpsc::channel::<Result<(String, Option<models::Bracket>), String>>(2);
 
     loop {
         terminal.draw(|frame| ui::render(frame, app))?;
@@ -203,6 +206,63 @@ async fn run_loop(
                     }
                 }
             }
+        }
+
+        // Check if we need to fetch bracket data
+        if app.screen == input::Screen::TournamentDetail
+            && app.tournament_detail_tab == input::TournamentTab::Bracket
+        {
+            if let Some(ref tid) = app.selected_tournament_id {
+                if !app.bracket_cache.contains_key(tid) {
+                    let bracket_ttl = Duration::from_secs(600);
+                    if let Ok(Some(data)) = bracket_disk_cache.read(&format!("bracket-{}", tid), bracket_ttl) {
+                        if let Ok(bracket) = serde_json::from_str::<models::Bracket>(&data) {
+                            app.bracket_cache.insert(tid.clone(), bracket);
+                        }
+                    }
+                    if !app.bracket_cache.contains_key(tid) && !app.bracket_loading {
+                        app.bracket_loading = true;
+                        let tid_clone = tid.clone();
+                        let api_key = app.config.pandascore_api_key.clone();
+                        let bracket_tx = bracket_tx.clone();
+                        let tournament_matches: Vec<models::Match> = app.matches.iter()
+                            .filter(|m| m.tournament_id == tid_clone)
+                            .cloned()
+                            .collect();
+                        tokio::spawn(async move {
+                            let provider = api::provider_from_config(api_key.as_deref());
+                            let result = provider
+                                .fetch_bracket(&tid_clone)
+                                .await
+                                .map(|bracket| {
+                                    let bracket = bracket.or_else(|| {
+                                        api::liquipedia::LiquipediaProvider::build_stage_bracket(&tournament_matches)
+                                    });
+                                    (tid_clone, bracket)
+                                })
+                                .map_err(|e| e.to_string());
+                            let _ = bracket_tx.send(result).await;
+                        });
+                    }
+                }
+            }
+        }
+
+        while let Ok(result) = bracket_rx.try_recv() {
+            match result {
+                Ok((tid, bracket)) => {
+                    if let Some(bracket) = bracket {
+                        if let Ok(json) = serde_json::to_string(&bracket) {
+                            let _ = bracket_disk_cache.write(&format!("bracket-{}", tid), &json);
+                        }
+                        app.bracket_cache.insert(tid, bracket);
+                    }
+                }
+                Err(e) => {
+                    app.error_message = Some(format!("Bracket fetch error: {}", e));
+                }
+            }
+            app.bracket_loading = false;
         }
 
         if app.should_quit {
