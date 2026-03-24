@@ -60,6 +60,25 @@
 **Effort:** S (human: ~1 hour / CC: ~10 min)
 **Depends on:** Broadcast mode shipping
 
+### Fix Tournament Selection Stability
+**What:** Replace `selected_tournament: Option<usize>` (index into ephemeral filtered Vec) with `selected_tournament_id: Option<String>` (stable tournament ID). Resolve the actual tournament by ID lookup instead of index.
+**Why:** Data refresh can silently change which tournament the index points to. Also, completed tournaments can't be navigated to because the source Vec filters them out.
+**Effort:** S (human: ~1 hour / CC: ~10 min)
+**Depends on:** Nothing
+
+### Document Match Iteration Patterns
+**What:** Add code comments documenting why broadcast/notifications iterate `app.matches` directly while dashboard uses accessor methods (which apply search/filter). The split is intentional — broadcast ignores filters by design.
+**Why:** Maintenance hazard — future contributors may accidentally apply search/filter to broadcast.
+**Effort:** S (human: ~15 min / CC: ~5 min)
+**Depends on:** Nothing
+
+### Recently Ended Matches on Dashboard
+**What:** Show recently completed matches (last 1-2 hours) in a dedicated section or below the live panel on the dashboard. Currently completed matches only appear in the tournament detail Matches tab.
+**Why:** During a tournament, you want to see what just happened — "OG beat Nigma 2-0" — without navigating to the tournament detail screen.
+**Context:** Data already exists in `app.matches` with `MatchStatus::Completed`. Could add a "RECENT" panel or show completed matches in the live panel with "END" tag (which already renders). Filter to matches where `start_time` was within the last 2 hours.
+**Effort:** S (human: ~1 hour / CC: ~10 min)
+**Depends on:** Nothing
+
 ### Structured Logging
 **What:** Add optional file-based logging via `tracing` or `log` + `simplelog`
 **Why:** Zero logging currently. When Liquipedia HTML changes or API errors occur, only signal is the UI error bar. File logs help debug user-reported issues.

@@ -57,11 +57,7 @@ pub fn render(frame: &mut Frame, app: &App) {
                 }
             };
 
-            let is_fav = app
-                .config
-                .favorite_tournaments
-                .iter()
-                .any(|f| f == &t.name);
+            let is_fav = app.config.favorite_tournaments.iter().any(|f| f == &t.name);
             let fav = if is_fav {
                 Span::styled("★ ", Style::default().fg(Color::Yellow))
             } else {
