@@ -112,6 +112,25 @@ impl App {
         }
     }
 
+    pub fn last_refresh_display(&self) -> String {
+        let elapsed = self.last_refresh.elapsed().as_secs();
+        if elapsed > 9000 {
+            "never".to_string()
+        } else if elapsed < 60 {
+            format!("{}s ago", elapsed)
+        } else {
+            format!("{}m ago", elapsed / 60)
+        }
+    }
+
+    pub fn data_source(&self) -> &str {
+        if self.config.pandascore_api_key.is_some() {
+            "PandaScore"
+        } else {
+            "Liquipedia"
+        }
+    }
+
     pub fn needs_refresh(&self) -> bool {
         self.last_refresh.elapsed() >= Duration::from_secs(self.config.refresh_interval)
     }

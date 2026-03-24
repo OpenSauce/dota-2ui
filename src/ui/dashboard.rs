@@ -33,7 +33,7 @@ pub fn render(frame: &mut Frame, app: &App) {
 
     render_upcoming_panel(frame, app, grid[0]);
     render_right_panel(frame, app, grid[1]);
-    keybind_bar::render_keybind_bar(&app.screen, main_layout[2], frame.buffer_mut());
+    keybind_bar::render_keybind_bar(app, main_layout[2], frame.buffer_mut());
 
     if let Some(ref err) = app.error_message {
         let err_area = Rect {
@@ -224,5 +224,5 @@ fn render_narrow(frame: &mut Frame, app: &App, area: Rect) {
     render_live_panel(frame, app, layout[0]);
     render_upcoming_panel(frame, app, layout[1]);
     render_right_panel(frame, app, layout[2]);
-    keybind_bar::render_keybind_bar(&app.screen, layout[3], frame.buffer_mut());
+    keybind_bar::render_keybind_bar(app, layout[3], frame.buffer_mut());
 }
