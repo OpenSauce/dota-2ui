@@ -109,6 +109,15 @@ pub fn render(frame: &mut Frame, app: &App) {
             // Matches: ALL matches including completed
             render_matches_tab(frame, app, tournament, layout[2], true);
         }
+        TournamentTab::Bracket => {
+            frame.render_widget(
+                Paragraph::new(Span::styled(
+                    "Bracket view (coming soon)",
+                    Style::default().fg(Color::DarkGray),
+                )),
+                layout[2],
+            );
+        }
         TournamentTab::Info => {
             render_info_tab(frame, tournament, layout[2]);
         }
@@ -121,6 +130,7 @@ fn render_tab_bar(frame: &mut Frame, active: TournamentTab, area: Rect) {
     let tabs = [
         ("Overview", TournamentTab::Overview),
         ("Matches", TournamentTab::Matches),
+        ("Bracket", TournamentTab::Bracket),
         ("Info", TournamentTab::Info),
     ];
     let spans: Vec<Span> = tabs

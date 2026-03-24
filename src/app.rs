@@ -1,6 +1,7 @@
 use crate::config::Config;
 use crate::input::{AppAction, MatchFilter, Screen, TournamentTab};
 use crate::models::*;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
@@ -46,6 +47,12 @@ pub struct App {
     pub tournament_detail_tab: TournamentTab,
     pub status_message: Option<(String, u64)>,
     pub favorite_picker: Option<FavoritePicker>,
+    pub show_all_tournaments: bool,
+    pub bracket_cache: HashMap<String, Bracket>,
+    pub bracket_loading: bool,
+    pub bracket_round_offset: usize,
+    pub bracket_match_offset: usize,
+    pub bracket_view_mode: BracketViewMode,
 }
 
 impl App {
@@ -72,6 +79,12 @@ impl App {
             tournament_detail_tab: TournamentTab::Overview,
             status_message: None,
             favorite_picker: None,
+            show_all_tournaments: false,
+            bracket_cache: HashMap::new(),
+            bracket_loading: false,
+            bracket_round_offset: 0,
+            bracket_match_offset: 0,
+            bracket_view_mode: BracketViewMode::Column,
         }
     }
 
@@ -155,7 +168,7 @@ impl App {
             }
             AppAction::Select => {
                 if self.screen == Screen::TournamentBrowser {
-                    if let Some(t) = self.upcoming_tournaments().get(self.scroll_offset) {
+                    if let Some(t) = self.browsable_tournaments().get(self.scroll_offset) {
                         self.selected_tournament_id = Some(t.id.clone());
                         self.screen = Screen::TournamentDetail;
                         self.scroll_offset = 0;
@@ -228,6 +241,29 @@ impl App {
                 self.search_query.clear();
                 self.clamp_scroll();
             }
+            AppAction::ShowBracket => {
+                self.tournament_detail_tab = TournamentTab::Bracket;
+                self.bracket_round_offset = 0;
+                self.bracket_match_offset = 0;
+            }
+            AppAction::ToggleBracketView => {
+                if self.tournament_detail_tab == TournamentTab::Bracket {
+                    if let Some(id) = &self.selected_tournament_id {
+                        if let Some(bracket) = self.bracket_cache.get(id) {
+                            if bracket.bracket_type == BracketType::SingleElim {
+                                self.bracket_view_mode = match self.bracket_view_mode {
+                                    BracketViewMode::Column => BracketViewMode::AsciiTree,
+                                    BracketViewMode::AsciiTree => BracketViewMode::Column,
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+            AppAction::ToggleAllTournaments => {
+                self.show_all_tournaments = !self.show_all_tournaments;
+                self.scroll_offset = 0;
+            }
         }
     }
 
@@ -283,7 +319,7 @@ impl App {
                 }
             }
             Screen::TournamentBrowser => {
-                if let Some(t) = self.upcoming_tournaments().get(self.scroll_offset).copied() {
+                if let Some(t) = self.browsable_tournaments().get(self.scroll_offset).copied() {
                     let name = t.name.clone();
                     let was_fav = self.config.favorite_tournaments.iter().any(|f| f == &name);
                     self.config.toggle_favorite_tournament(&name);
@@ -364,7 +400,7 @@ impl App {
                 3 => self.favorite_teams_matches().len(),
                 _ => 0,
             },
-            Screen::TournamentBrowser => self.upcoming_tournaments().len(),
+            Screen::TournamentBrowser => self.browsable_tournaments().len(),
             _ => 0,
         }
     }
@@ -420,6 +456,23 @@ impl App {
             .tournaments
             .iter()
             .filter(|t| t.status != TournamentStatus::Completed)
+            .filter(|t| {
+                if self.search_query.is_empty() {
+                    return true;
+                }
+                let q = self.search_query.to_lowercase();
+                t.name.to_lowercase().contains(&q)
+            })
+            .collect();
+        t.sort_by_key(|t| t.start_date);
+        t
+    }
+
+    pub fn browsable_tournaments(&self) -> Vec<&Tournament> {
+        let mut t: Vec<&Tournament> = self
+            .tournaments
+            .iter()
+            .filter(|t| self.show_all_tournaments || t.status != TournamentStatus::Completed)
             .filter(|t| {
                 if self.search_query.is_empty() {
                     return true;
@@ -858,5 +911,18 @@ mod tests {
             .and_then(|id| app.tournaments.iter().find(|t| &t.id == id));
         assert!(found.is_some());
         assert_eq!(found.unwrap().name, "ESL One 2026");
+    }
+
+    #[test]
+    fn all_tournaments_includes_completed() {
+        let mut app = test_app();
+        let mut t1 = test_tournament();
+        t1.status = TournamentStatus::Completed;
+        t1.id = "completed-1".into();
+        let t2 = test_tournament();
+        app.tournaments = vec![t1, t2];
+        assert_eq!(app.browsable_tournaments().len(), 1);
+        app.show_all_tournaments = true;
+        assert_eq!(app.browsable_tournaments().len(), 2);
     }
 }

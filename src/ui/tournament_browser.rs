@@ -12,6 +12,7 @@ pub fn render(frame: &mut Frame, app: &App) {
     ])
     .split(area);
 
+    let mode_label = if app.show_all_tournaments { "All" } else { "Upcoming" };
     let header = Paragraph::new(Line::from(vec![
         Span::styled(
             " Tournament Browser",
@@ -20,7 +21,7 @@ pub fn render(frame: &mut Frame, app: &App) {
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled(
-            format!("  ({} tournaments)", app.upcoming_tournaments().len()),
+            format!("  ({} {} tournaments)", app.browsable_tournaments().len(), mode_label),
             Style::default().fg(Color::DarkGray),
         ),
     ]))
@@ -31,7 +32,7 @@ pub fn render(frame: &mut Frame, app: &App) {
     );
     frame.render_widget(header, layout[0]);
 
-    let tournaments = app.upcoming_tournaments();
+    let tournaments = app.browsable_tournaments();
     let items: Vec<ListItem> = tournaments
         .iter()
         .enumerate()
