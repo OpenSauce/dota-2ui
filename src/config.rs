@@ -7,6 +7,7 @@ use std::path::Path;
 pub struct Config {
     #[serde(default = "default_refresh_interval")]
     pub refresh_interval: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pandascore_api_key: Option<String>,
     #[serde(default)]
     pub favorite_teams: Vec<String>,
@@ -55,7 +56,15 @@ impl Config {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
-        let content = toml::to_string_pretty(self).map_err(io::Error::other)?;
+        // Re-read the on-disk config to preserve fields the user may have
+        // edited externally (e.g. pandascore_api_key added by hand).
+        let mut to_save = self.clone();
+        if to_save.pandascore_api_key.is_none() {
+            if let Ok(disk) = Self::load_from(path) {
+                to_save.pandascore_api_key = disk.pandascore_api_key;
+            }
+        }
+        let content = toml::to_string_pretty(&to_save).map_err(io::Error::other)?;
         fs::write(path, content)
     }
 
