@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1] - 2026-03-25
+
+### Added
+- Match detail view — press Enter on any match to see series progress, per-game results, and match info
+- PandaScore `/matches/{id}` integration for per-game data (winner, status, duration)
+- Tab key cycles through games in a series on the match detail screen
+- Loading spinner and error state with retry hint on match detail
+- In-memory match detail cache with 60s TTL for live matches and 30s error retry cooldown
+- 16 new unit tests covering match detail navigation, parsing, cache invalidation, and state management
+
+### Fixed
+- Config save no longer overwrites externally-added `pandascore_api_key` — re-reads on-disk config to preserve hand-edited fields
+- `selected_game` index now resets on refresh to prevent stale highlight
+- `match_detail_loading` flag resets when navigating away, preventing stuck loading state
+
 ## [0.3.0] - 2026-03-24
 
 ### Added
