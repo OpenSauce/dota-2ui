@@ -18,14 +18,17 @@ cargo install --git https://github.com/OpenSauce/dota-2ui --features notificatio
 
 | Key | Action |
 |-----|--------|
+| `Enter` | Select match / tournament (opens detail view) |
+| `Esc` | Back to previous screen |
+| `Tab` | Cycle panels (match detail: cycle games) |
+| `j/k` | Scroll up/down |
+| `s` | Toggle favorite |
+| `/` | Search |
+| `f` | Cycle filter (All / Live / Upcoming / Favorites) |
+| `r` | Force refresh |
 | `b` | Toggle broadcast mode |
 | `t` | Tournament browser |
 | `o` | Open stream URL |
-| `r` | Force refresh |
-| `j/k` | Scroll (tournament browser) |
-| `Tab` | Cycle panels |
-| `Enter` | Select |
-| `Esc` | Back |
 | `,` | Settings |
 | `q` | Quit |
 
