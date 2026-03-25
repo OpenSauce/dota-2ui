@@ -161,6 +161,7 @@ impl App {
                         Screen::MatchDetail => {
                             self.screen = self.previous_screen.take().unwrap_or(Screen::Dashboard);
                             self.selected_match_id = None;
+                            self.match_detail_loading = false;
                             self.scroll_offset = 0;
                         }
                         _ => {
@@ -244,6 +245,7 @@ impl App {
                     if let Some(mid) = &self.selected_match_id {
                         self.match_detail_cache.remove(mid);
                     }
+                    self.selected_game = 0;
                 }
             }
             AppAction::OpenTournaments => {
@@ -1208,5 +1210,56 @@ mod tests {
         let m = app.selected_match();
         assert!(m.is_some());
         assert_eq!(m.unwrap().team_a.name, "Team Liquid");
+    }
+
+    #[test]
+    fn select_opens_match_detail_from_tournament_detail() {
+        let mut app = test_app();
+        app.tournaments.push(test_tournament());
+        app.selected_tournament_id = Some("esl-one-2026".into());
+        let mut m = test_match(MatchStatus::Live);
+        m.tournament_id = "esl-one-2026".into();
+        app.matches.push(m);
+        app.screen = Screen::TournamentDetail;
+        app.tournament_detail_tab = TournamentTab::Matches;
+        app.scroll_offset = 0;
+        app.handle_action(AppAction::Select);
+        assert_eq!(app.screen, Screen::MatchDetail);
+        assert_eq!(app.selected_match_id, Some("m1".to_string()));
+        assert_eq!(app.previous_screen, Some(Screen::TournamentDetail));
+    }
+
+    #[test]
+    fn refresh_invalidates_match_detail_cache() {
+        let mut app = test_app();
+        app.screen = Screen::MatchDetail;
+        app.selected_match_id = Some("m1".into());
+        app.selected_game = 2;
+        app.match_detail_cache.insert(
+            "m1".into(),
+            (
+                MatchDetailData {
+                    games: vec![],
+                    fetch_status: FetchStatus::Ready,
+                },
+                Instant::now(),
+            ),
+        );
+        assert!(app.match_detail_cache.contains_key("m1"));
+        app.handle_action(AppAction::Refresh);
+        assert!(!app.match_detail_cache.contains_key("m1"));
+        assert_eq!(app.selected_game, 0);
+    }
+
+    #[test]
+    fn back_from_match_detail_resets_loading_flag() {
+        let mut app = test_app();
+        app.screen = Screen::MatchDetail;
+        app.previous_screen = Some(Screen::Dashboard);
+        app.selected_match_id = Some("m1".into());
+        app.match_detail_loading = true;
+        app.handle_action(AppAction::Back);
+        assert_eq!(app.screen, Screen::Dashboard);
+        assert!(!app.match_detail_loading);
     }
 }

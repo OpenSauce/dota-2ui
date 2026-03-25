@@ -284,13 +284,16 @@ async fn run_loop(
             if let Some(ref mid) = app.selected_match_id {
                 let needs_fetch = match app.match_detail_cache.get(mid) {
                     None => true,
-                    Some((_, fetched_at)) => {
-                        // Live matches: re-fetch if >60s old
+                    Some((data, fetched_at)) => {
+                        let age = fetched_at.elapsed();
+                        let is_error = matches!(data.fetch_status, models::FetchStatus::Error(_));
                         let is_live = app
                             .matches
                             .iter()
                             .any(|m| m.id == *mid && m.status == models::MatchStatus::Live);
-                        is_live && fetched_at.elapsed() >= Duration::from_secs(60)
+                        // Re-fetch: errors after 30s cooldown, live matches after 60s
+                        (is_error && age >= Duration::from_secs(30))
+                            || (is_live && age >= Duration::from_secs(60))
                     }
                 };
                 if needs_fetch && !app.match_detail_loading {
