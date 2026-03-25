@@ -111,3 +111,45 @@ fn test_parse_pandascore_empty() {
         .unwrap()
         .is_empty());
 }
+
+// === Match Detail Parse Tests ===
+
+#[test]
+fn parse_match_detail_happy_path() {
+    let json = r#"{
+        "games": [
+            {"position": 1, "status": "finished", "winner": {"name": "Team Liquid"}, "length": 2400},
+            {"position": 2, "status": "finished", "winner": {"name": "OG"}, "length": 1800},
+            {"position": 3, "status": "running", "winner": null, "length": null}
+        ]
+    }"#;
+    let detail = PandaScoreProvider::parse_match_detail(json).unwrap();
+    assert_eq!(detail.games.len(), 3);
+    assert_eq!(detail.games[0].game_number, 1);
+    assert_eq!(detail.games[0].status, MatchStatus::Completed);
+    assert_eq!(detail.games[0].winner.as_deref(), Some("Team Liquid"));
+    assert!(detail.games[0].duration.is_some());
+    assert_eq!(detail.games[1].winner.as_deref(), Some("OG"));
+    assert_eq!(detail.games[2].status, MatchStatus::Live);
+    assert!(detail.games[2].winner.is_none());
+}
+
+#[test]
+fn parse_match_detail_no_games() {
+    let json = r#"{}"#;
+    let detail = PandaScoreProvider::parse_match_detail(json).unwrap();
+    assert!(detail.games.is_empty());
+}
+
+#[test]
+fn parse_match_detail_malformed() {
+    let result = PandaScoreProvider::parse_match_detail("not json");
+    assert!(result.is_err());
+}
+
+#[test]
+fn parse_match_detail_null_games() {
+    let json = r#"{"games": null}"#;
+    let detail = PandaScoreProvider::parse_match_detail(json).unwrap();
+    assert!(detail.games.is_empty());
+}

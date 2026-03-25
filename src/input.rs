@@ -5,6 +5,7 @@ pub enum Screen {
     Dashboard,
     TournamentBrowser,
     TournamentDetail,
+    MatchDetail,
     Settings,
     Broadcast,
 }
@@ -71,6 +72,7 @@ pub enum AppAction {
     ShowBracket,
     ToggleBracketView,
     ToggleAllTournaments,
+    NextGame,
 }
 
 pub fn map_key(key: KeyEvent, screen: &Screen, search_active: bool) -> Option<AppAction> {
@@ -96,7 +98,13 @@ pub fn map_key(key: KeyEvent, screen: &Screen, search_active: bool) -> Option<Ap
         KeyCode::Char('j') | KeyCode::Down => Some(AppAction::ScrollDown),
         KeyCode::Char('k') | KeyCode::Up => Some(AppAction::ScrollUp),
         KeyCode::Enter => Some(AppAction::Select),
-        KeyCode::Tab => Some(AppAction::NextPanel),
+        KeyCode::Tab => {
+            if *screen == Screen::MatchDetail {
+                Some(AppAction::NextGame)
+            } else {
+                Some(AppAction::NextPanel)
+            }
+        }
         KeyCode::Char('s') => Some(AppAction::ToggleFavorite),
         KeyCode::Char('r') => Some(AppAction::Refresh),
         KeyCode::Char('t') => Some(AppAction::OpenTournaments),

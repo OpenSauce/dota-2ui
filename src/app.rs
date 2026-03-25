@@ -54,6 +54,12 @@ pub struct App {
     pub bracket_round_offset: usize,
     pub bracket_match_offset: usize,
     pub bracket_view_mode: BracketViewMode,
+    // Match detail
+    pub selected_match_id: Option<String>,
+    pub match_detail_cache: HashMap<String, (MatchDetailData, Instant)>,
+    pub match_detail_loading: bool,
+    pub previous_screen: Option<Screen>,
+    pub selected_game: usize,
 }
 
 impl App {
@@ -87,6 +93,11 @@ impl App {
             bracket_round_offset: 0,
             bracket_match_offset: 0,
             bracket_view_mode: BracketViewMode::Column,
+            selected_match_id: None,
+            match_detail_cache: HashMap::new(),
+            match_detail_loading: false,
+            previous_screen: None,
+            selected_game: 0,
         }
     }
 
@@ -147,6 +158,11 @@ impl App {
                 } else {
                     match self.screen {
                         Screen::Dashboard => self.should_quit = true,
+                        Screen::MatchDetail => {
+                            self.screen = self.previous_screen.take().unwrap_or(Screen::Dashboard);
+                            self.selected_match_id = None;
+                            self.scroll_offset = 0;
+                        }
                         _ => {
                             self.screen = Screen::Dashboard;
                             self.scroll_offset = 0;
@@ -196,8 +212,8 @@ impl App {
                     self.scroll_offset = 0;
                 }
             }
-            AppAction::Select => {
-                if self.screen == Screen::TournamentBrowser {
+            AppAction::Select => match self.screen {
+                Screen::TournamentBrowser => {
                     if let Some(t) = self.browsable_tournaments().get(self.scroll_offset) {
                         self.selected_tournament_id = Some(t.id.clone());
                         self.screen = Screen::TournamentDetail;
@@ -206,12 +222,29 @@ impl App {
                         self.bracket_loading = false;
                     }
                 }
-            }
+                Screen::Dashboard | Screen::TournamentDetail => {
+                    if let Some(m) = self.selected_match() {
+                        let mid = m.id.clone();
+                        self.previous_screen = Some(self.screen.clone());
+                        self.selected_match_id = Some(mid);
+                        self.screen = Screen::MatchDetail;
+                        self.selected_game = 0;
+                        self.scroll_offset = 0;
+                    }
+                }
+                _ => {}
+            },
             AppAction::ToggleFavorite => {
                 self.handle_toggle_favorite();
             }
             AppAction::Refresh => {
                 self.last_refresh = Instant::now() - Duration::from_secs(9999);
+                // Also invalidate match detail cache when on that screen
+                if self.screen == Screen::MatchDetail {
+                    if let Some(mid) = &self.selected_match_id {
+                        self.match_detail_cache.remove(mid);
+                    }
+                }
             }
             AppAction::OpenTournaments => {
                 self.screen = Screen::TournamentBrowser;
@@ -294,6 +327,20 @@ impl App {
             AppAction::ToggleAllTournaments => {
                 self.show_all_tournaments = !self.show_all_tournaments;
                 self.scroll_offset = 0;
+            }
+            AppAction::NextGame => {
+                if self.screen == Screen::MatchDetail {
+                    if let Some(mid) = &self.selected_match_id {
+                        let game_count = self
+                            .match_detail_cache
+                            .get(mid)
+                            .map(|(d, _)| d.games.len())
+                            .unwrap_or(0);
+                        if game_count > 1 {
+                            self.selected_game = (self.selected_game + 1) % game_count;
+                        }
+                    }
+                }
             }
         }
     }
@@ -626,10 +673,27 @@ impl App {
         notifications
     }
 
-    fn selected_match(&self) -> Option<&Match> {
-        match self.active_panel {
-            0 => self.visible_live().get(self.scroll_offset).copied(),
-            1 => self.visible_upcoming().get(self.scroll_offset).copied(),
+    pub fn selected_match(&self) -> Option<&Match> {
+        match self.screen {
+            Screen::Dashboard => match self.active_panel {
+                0 => self.visible_live().get(self.scroll_offset).copied(),
+                1 => self.visible_upcoming().get(self.scroll_offset).copied(),
+                3 => self
+                    .favorite_teams_matches()
+                    .get(self.scroll_offset)
+                    .copied(),
+                _ => None,
+            },
+            Screen::TournamentDetail if self.tournament_detail_tab == TournamentTab::Matches => {
+                self.selected_tournament_id.as_ref().and_then(|tid| {
+                    let matches: Vec<&Match> = self
+                        .matches
+                        .iter()
+                        .filter(|m| m.tournament_id == *tid)
+                        .collect();
+                    matches.get(self.scroll_offset).copied()
+                })
+            }
             _ => None,
         }
     }
@@ -1010,5 +1074,139 @@ mod tests {
         assert_eq!(app.browsable_tournaments().len(), 1);
         app.show_all_tournaments = true;
         assert_eq!(app.browsable_tournaments().len(), 2);
+    }
+
+    // === Match Detail Tests ===
+
+    #[test]
+    fn select_opens_match_detail_from_live_panel() {
+        let mut app = test_app();
+        app.matches.push(test_match(MatchStatus::Live));
+        app.active_panel = 0;
+        app.handle_action(AppAction::Select);
+        assert_eq!(app.screen, Screen::MatchDetail);
+        assert_eq!(app.selected_match_id, Some("m1".to_string()));
+        assert_eq!(app.previous_screen, Some(Screen::Dashboard));
+    }
+
+    #[test]
+    fn select_opens_match_detail_from_upcoming_panel() {
+        let mut app = test_app();
+        app.matches.push(test_match(MatchStatus::Upcoming));
+        app.active_panel = 1;
+        app.handle_action(AppAction::Select);
+        assert_eq!(app.screen, Screen::MatchDetail);
+        assert_eq!(app.selected_match_id, Some("m1".to_string()));
+    }
+
+    #[test]
+    fn select_opens_match_detail_from_favorites_panel() {
+        let mut app = test_app();
+        app.config.favorite_teams = vec!["Team Liquid".into()];
+        app.matches.push(test_match(MatchStatus::Live));
+        app.active_panel = 3;
+        app.handle_action(AppAction::Select);
+        assert_eq!(app.screen, Screen::MatchDetail);
+        assert_eq!(app.selected_match_id, Some("m1".to_string()));
+    }
+
+    #[test]
+    fn select_noop_when_no_match() {
+        let mut app = test_app();
+        // No matches loaded, panel 0
+        app.active_panel = 0;
+        app.handle_action(AppAction::Select);
+        assert_eq!(app.screen, Screen::Dashboard); // unchanged
+        assert_eq!(app.selected_match_id, None);
+    }
+
+    #[test]
+    fn next_game_cycles() {
+        let mut app = test_app();
+        app.screen = Screen::MatchDetail;
+        app.selected_match_id = Some("m1".into());
+        app.match_detail_cache.insert(
+            "m1".into(),
+            (
+                MatchDetailData {
+                    games: vec![
+                        GameDetail {
+                            game_number: 1,
+                            status: MatchStatus::Completed,
+                            winner: Some("TL".into()),
+                            duration: None,
+                        },
+                        GameDetail {
+                            game_number: 2,
+                            status: MatchStatus::Completed,
+                            winner: Some("OG".into()),
+                            duration: None,
+                        },
+                        GameDetail {
+                            game_number: 3,
+                            status: MatchStatus::Live,
+                            winner: None,
+                            duration: None,
+                        },
+                    ],
+                    fetch_status: FetchStatus::Ready,
+                },
+                Instant::now(),
+            ),
+        );
+        assert_eq!(app.selected_game, 0);
+        app.handle_action(AppAction::NextGame);
+        assert_eq!(app.selected_game, 1);
+        app.handle_action(AppAction::NextGame);
+        assert_eq!(app.selected_game, 2);
+        app.handle_action(AppAction::NextGame);
+        assert_eq!(app.selected_game, 0); // wraps
+    }
+
+    #[test]
+    fn next_game_noop_on_bo1() {
+        let mut app = test_app();
+        app.screen = Screen::MatchDetail;
+        app.selected_match_id = Some("m1".into());
+        app.match_detail_cache.insert(
+            "m1".into(),
+            (
+                MatchDetailData {
+                    games: vec![GameDetail {
+                        game_number: 1,
+                        status: MatchStatus::Live,
+                        winner: None,
+                        duration: None,
+                    }],
+                    fetch_status: FetchStatus::Ready,
+                },
+                Instant::now(),
+            ),
+        );
+        app.handle_action(AppAction::NextGame);
+        assert_eq!(app.selected_game, 0); // stays at 0
+    }
+
+    #[test]
+    fn back_restores_previous_screen() {
+        let mut app = test_app();
+        app.screen = Screen::MatchDetail;
+        app.previous_screen = Some(Screen::TournamentDetail);
+        app.selected_match_id = Some("m1".into());
+        app.handle_action(AppAction::Back);
+        assert_eq!(app.screen, Screen::TournamentDetail);
+        assert_eq!(app.selected_match_id, None);
+        assert_eq!(app.previous_screen, None); // consumed
+    }
+
+    #[test]
+    fn selected_match_works_from_favorites() {
+        let mut app = test_app();
+        app.config.favorite_teams = vec!["Team Liquid".into()];
+        app.matches.push(test_match(MatchStatus::Live));
+        app.active_panel = 3;
+        let m = app.selected_match();
+        assert!(m.is_some());
+        assert_eq!(m.unwrap().team_a.name, "Team Liquid");
     }
 }
