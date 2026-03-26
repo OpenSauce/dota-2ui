@@ -6,6 +6,7 @@ use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::future::Future;
 use std::pin::Pin;
+use std::time::Duration;
 
 const BASE_URL: &str = "https://api.pandascore.co/dota2";
 
@@ -65,6 +66,27 @@ struct PsLeague {
 #[derive(Deserialize)]
 struct PsStream {
     raw_url: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct PsGame {
+    #[serde(default)]
+    position: Option<u8>,
+    status: Option<String>,
+    winner: Option<PsGameWinner>,
+    length: Option<u64>,
+}
+
+#[derive(Deserialize)]
+struct PsGameWinner {
+    name: Option<String>,
+}
+
+/// Single match response from /matches/{id} (not an array).
+#[derive(Deserialize)]
+struct PsMatchDetail {
+    #[serde(default)]
+    games: Option<Vec<PsGame>>,
 }
 
 #[derive(Deserialize)]
@@ -267,6 +289,36 @@ impl PandaScoreProvider {
         Ok(merged.into_values().collect())
     }
 
+    pub fn parse_match_detail(json: &str) -> Result<MatchDetailData, ApiError> {
+        let detail: PsMatchDetail =
+            serde_json::from_str(json).map_err(|e| ApiError::Parse(e.to_string()))?;
+
+        let games = detail
+            .games
+            .unwrap_or_default()
+            .into_iter()
+            .enumerate()
+            .map(|(i, g)| {
+                let status = match g.status.as_deref() {
+                    Some("finished") => MatchStatus::Completed,
+                    Some("running") => MatchStatus::Live,
+                    _ => MatchStatus::Upcoming,
+                };
+                GameDetail {
+                    game_number: g.position.unwrap_or((i + 1) as u8),
+                    status,
+                    winner: g.winner.and_then(|w| w.name),
+                    duration: g.length.map(Duration::from_secs),
+                }
+            })
+            .collect();
+
+        Ok(MatchDetailData {
+            games,
+            fetch_status: FetchStatus::Ready,
+        })
+    }
+
     async fn get(&self, endpoint: &str) -> ApiResult<String> {
         let url = format!("{}{}", BASE_URL, endpoint);
         let resp = self
@@ -448,6 +500,18 @@ fn find_next_match(
 }
 
 impl MatchProvider for PandaScoreProvider {
+    fn fetch_match_detail(
+        &self,
+        match_id: &str,
+    ) -> Pin<Box<dyn Future<Output = ApiResult<Option<MatchDetailData>>> + Send + '_>> {
+        let mid = match_id.to_string();
+        Box::pin(async move {
+            let json = self.get(&format!("/matches/{}", mid)).await?;
+            let detail = Self::parse_match_detail(&json)?;
+            Ok(Some(detail))
+        })
+    }
+
     fn fetch_bracket(
         &self,
         tournament_id: &str,

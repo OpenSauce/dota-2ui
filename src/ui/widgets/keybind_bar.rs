@@ -55,6 +55,7 @@ pub fn render_keybind_bar(app: &App, area: Rect, buf: &mut Buffer) {
             ("s", "Fav"),
             ("Esc", "Back"),
         ],
+        Screen::MatchDetail => vec![("Esc", "Back"), ("r", "Refresh"), ("Tab", "Next game")],
         Screen::Settings => vec![("Esc", "Back")],
         Screen::Broadcast => vec![("b", "Dashboard"), ("q", "Quit")],
     };

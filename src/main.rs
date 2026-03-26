@@ -110,6 +110,9 @@ async fn run_loop(
     let (bracket_tx, mut bracket_rx) = tokio::sync::mpsc::channel::<
         Result<(String, Option<models::Bracket>), (String, String)>,
     >(2);
+    let (detail_tx, mut detail_rx) = tokio::sync::mpsc::channel::<
+        Result<(String, models::MatchDetailData), (String, String)>,
+    >(2);
 
     loop {
         terminal.draw(|frame| ui::render(frame, app))?;
@@ -274,6 +277,70 @@ async fn run_loop(
                 }
             }
             app.bracket_loading = false;
+        }
+
+        // Check if we need to fetch match detail data
+        if app.screen == input::Screen::MatchDetail {
+            if let Some(ref mid) = app.selected_match_id {
+                let needs_fetch = match app.match_detail_cache.get(mid) {
+                    None => true,
+                    Some((data, fetched_at)) => {
+                        let age = fetched_at.elapsed();
+                        let is_error = matches!(data.fetch_status, models::FetchStatus::Error(_));
+                        let is_live = app
+                            .matches
+                            .iter()
+                            .any(|m| m.id == *mid && m.status == models::MatchStatus::Live);
+                        // Re-fetch: errors after 30s cooldown, live matches after 60s
+                        (is_error && age >= Duration::from_secs(30))
+                            || (is_live && age >= Duration::from_secs(60))
+                    }
+                };
+                if needs_fetch && !app.match_detail_loading {
+                    app.match_detail_loading = true;
+                    let mid_clone = mid.clone();
+                    let api_key = app.config.pandascore_api_key.clone();
+                    let detail_tx = detail_tx.clone();
+                    tokio::spawn(async move {
+                        let provider = api::provider_from_config(api_key.as_deref());
+                        let mid_for_err = mid_clone.clone();
+                        let result = provider
+                            .fetch_match_detail(&mid_clone)
+                            .await
+                            .map(|detail| {
+                                let detail = detail.unwrap_or(models::MatchDetailData {
+                                    games: Vec::new(),
+                                    fetch_status: models::FetchStatus::Ready,
+                                });
+                                (mid_clone, detail)
+                            })
+                            .map_err(|e| (mid_for_err, e.to_string()));
+                        let _ = detail_tx.send(result).await;
+                    });
+                }
+            }
+        }
+
+        while let Ok(result) = detail_rx.try_recv() {
+            match result {
+                Ok((mid, detail)) => {
+                    app.match_detail_cache
+                        .insert(mid, (detail, std::time::Instant::now()));
+                }
+                Err((mid, e)) => {
+                    app.match_detail_cache.insert(
+                        mid,
+                        (
+                            models::MatchDetailData {
+                                games: Vec::new(),
+                                fetch_status: models::FetchStatus::Error(e),
+                            },
+                            std::time::Instant::now(),
+                        ),
+                    );
+                }
+            }
+            app.match_detail_loading = false;
         }
 
         if app.should_quit {

@@ -1,7 +1,7 @@
 pub mod liquipedia;
 pub mod pandascore;
 
-use crate::models::{Match, Tournament};
+use crate::models::{Match, MatchDetailData, Tournament};
 use std::future::Future;
 use std::pin::Pin;
 
@@ -39,6 +39,14 @@ pub struct FetchAllResult {
 pub trait MatchProvider: Send + Sync {
     /// Fetch all data in as few API requests as possible.
     fn fetch_all(&self) -> Pin<Box<dyn Future<Output = ApiResult<FetchAllResult>> + Send + '_>>;
+
+    /// Fetch detailed match data. Returns None if unavailable.
+    fn fetch_match_detail(
+        &self,
+        _match_id: &str,
+    ) -> Pin<Box<dyn Future<Output = ApiResult<Option<MatchDetailData>>> + Send + '_>> {
+        Box::pin(async { Ok(None) })
+    }
 
     /// Fetch bracket data for a specific tournament. Returns None if unavailable.
     fn fetch_bracket(

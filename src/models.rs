@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::time::Duration;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Team {
@@ -181,6 +182,31 @@ pub struct Bracket {
     pub upper_rounds: Vec<BracketRound>,
     pub lower_rounds: Option<Vec<BracketRound>>,
     pub grand_final: Option<BracketMatch>,
+}
+
+#[derive(Debug, Clone)]
+pub enum FetchStatus {
+    Loading,
+    Ready,
+    Error(String),
+}
+
+#[derive(Debug, Clone)]
+pub struct GameDetail {
+    pub game_number: u8,
+    pub status: MatchStatus,
+    pub winner: Option<String>,
+    #[allow(dead_code)] // populated by API, will be used by future game HUD
+    pub duration: Option<Duration>,
+}
+
+/// Holds only data NOT already in Match.
+/// Match provides: team_a, team_b, score_a, score_b, series_format,
+/// tournament_name, start_time, stream_url, stage.
+#[derive(Debug, Clone)]
+pub struct MatchDetailData {
+    pub games: Vec<GameDetail>,
+    pub fetch_status: FetchStatus,
 }
 
 impl Tournament {
