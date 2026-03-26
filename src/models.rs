@@ -196,6 +196,7 @@ pub struct GameDetail {
     pub game_number: u8,
     pub status: MatchStatus,
     pub winner: Option<String>,
+    #[allow(dead_code)] // populated by API, will be used by future game HUD
     pub duration: Option<Duration>,
 }
 

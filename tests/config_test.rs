@@ -67,7 +67,10 @@ fn test_save_preserves_api_key() {
 
     // Reload and verify
     let reloaded = Config::load_from(&path).unwrap();
-    assert_eq!(reloaded.pandascore_api_key.as_deref(), Some("my-secret-key"));
+    assert_eq!(
+        reloaded.pandascore_api_key.as_deref(),
+        Some("my-secret-key")
+    );
     assert!(reloaded.favorite_teams.contains(&"OG".to_string()));
     assert!(reloaded.favorite_teams.contains(&"Team Liquid".to_string()));
 }
